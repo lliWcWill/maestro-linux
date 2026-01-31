@@ -1,6 +1,10 @@
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
+/// Which AI backend a session is configured to use.
+///
+/// `Plain` is a raw terminal with no AI agent attached, useful for
+/// manual shell work within a worktree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AiMode {
     Claude,
@@ -9,6 +13,11 @@ pub enum AiMode {
     Plain,
 }
 
+/// Lifecycle state of a session, tracked for UI status indicators.
+///
+/// Transitions are driven by the frontend; the backend does not enforce
+/// a state machine. Invalid transitions (e.g., `Done` -> `Working`) are
+/// allowed and the caller is responsible for correctness.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SessionStatus {
     Starting,
@@ -19,6 +28,10 @@ pub enum SessionStatus {
     Error,
 }
 
+/// Frontend-visible configuration and state for a single session.
+///
+/// `branch` and `worktree_path` are `None` until `assign_branch` is called,
+/// allowing sessions to be created before their worktree is ready.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
     pub id: u32,
@@ -28,17 +41,25 @@ pub struct SessionConfig {
     pub worktree_path: Option<String>,
 }
 
+/// Thread-safe session registry backed by `DashMap` for lock-free concurrent reads.
+///
+/// Designed to be placed in Tauri managed state. All methods take `&self` so
+/// no exclusive access is needed, enabling safe concurrent access from
+/// multiple async command handlers.
 pub struct SessionManager {
     sessions: DashMap<u32, SessionConfig>,
 }
 
 impl SessionManager {
+    /// Creates an empty session registry.
     pub fn new() -> Self {
         Self {
             sessions: DashMap::new(),
         }
     }
 
+    /// Inserts a new session with `Starting` status and no branch assigned.
+    /// If a session with the same ID already exists, it is silently overwritten.
     pub fn create_session(&self, id: u32, mode: AiMode) -> SessionConfig {
         let config = SessionConfig {
             id,
@@ -51,10 +72,13 @@ impl SessionManager {
         config
     }
 
+    /// Returns a snapshot of the session config, or `None` if not found.
     pub fn get_session(&self, id: u32) -> Option<SessionConfig> {
         self.sessions.get(&id).map(|s| s.clone())
     }
 
+    /// Updates the session's status in place. Returns `false` if the session
+    /// does not exist (no error is raised).
     pub fn update_status(&self, id: u32, status: SessionStatus) -> bool {
         if let Some(mut session) = self.sessions.get_mut(&id) {
             session.status = status;
@@ -64,6 +88,8 @@ impl SessionManager {
         }
     }
 
+    /// Associates a branch (and optional worktree path) with an existing session.
+    /// Returns the updated config, or `None` if the session does not exist.
     pub fn assign_branch(&self, id: u32, branch: String, worktree_path: Option<String>) -> Option<SessionConfig> {
         if let Some(mut session) = self.sessions.get_mut(&id) {
             session.branch = Some(branch);
@@ -74,10 +100,12 @@ impl SessionManager {
         }
     }
 
+    /// Returns a snapshot of all active sessions. Order is not guaranteed.
     pub fn all_sessions(&self) -> Vec<SessionConfig> {
         self.sessions.iter().map(|e| e.value().clone()).collect()
     }
 
+    /// Removes and returns a session. Returns `None` if not found.
     pub fn remove_session(&self, id: u32) -> Option<SessionConfig> {
         self.sessions.remove(&id).map(|(_, v)| v)
     }

@@ -2,6 +2,11 @@ use tauri::{AppHandle, State};
 
 use crate::core::{ProcessManager, PtyError};
 
+/// Exposes `ProcessManager::spawn_shell` to the frontend.
+///
+/// Validates that `cwd` (if provided) exists and is a directory before
+/// forwarding to the process manager. Returns the new session ID.
+/// The frontend should listen on `pty-output-{id}` for shell output events.
 #[tauri::command]
 pub async fn spawn_shell(
     app_handle: AppHandle,
@@ -24,6 +29,8 @@ pub async fn spawn_shell(
     pm.spawn_shell(app_handle, cwd)
 }
 
+/// Exposes `ProcessManager::write_stdin` to the frontend.
+/// Sends raw text (including control sequences like `\r`) to the PTY.
 #[tauri::command]
 pub async fn write_stdin(
     state: State<'_, ProcessManager>,
@@ -34,6 +41,8 @@ pub async fn write_stdin(
     pm.write_stdin(session_id, &data)
 }
 
+/// Exposes `ProcessManager::resize_pty` to the frontend.
+/// Rejects dimensions that are zero or exceed 500 to prevent misuse.
 #[tauri::command]
 pub async fn resize_pty(
     state: State<'_, ProcessManager>,
@@ -48,6 +57,8 @@ pub async fn resize_pty(
     pm.resize_pty(session_id, rows, cols)
 }
 
+/// Exposes `ProcessManager::kill_session` to the frontend.
+/// Gracefully terminates the PTY session (SIGTERM, then SIGKILL after 3s).
 #[tauri::command]
 pub async fn kill_session(
     state: State<'_, ProcessManager>,

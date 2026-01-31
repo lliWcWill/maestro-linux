@@ -36,7 +36,11 @@ struct Inner {
     next_id: AtomicU32,
 }
 
-/// Manages PTY sessions. Clone-friendly via Arc for async Tauri command lifetime.
+/// Owns and manages all PTY sessions for the application lifetime.
+///
+/// Wraps an `Arc<Inner>` so it can be cheaply cloned into Tauri's managed state
+/// and shared across async command handlers without lifetime issues.
+/// Each session gets a monotonically increasing ID (never reused).
 #[derive(Clone)]
 pub struct ProcessManager {
     inner: Arc<Inner>,
@@ -49,6 +53,8 @@ impl Default for ProcessManager {
 }
 
 impl ProcessManager {
+    /// Creates a new manager with no active sessions.
+    /// Session IDs start at 1 and increment atomically.
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -58,7 +64,14 @@ impl ProcessManager {
         }
     }
 
-    /// Spawn a new shell session. Returns the session ID.
+    /// Spawns a login shell in a new PTY and returns its session ID.
+    ///
+    /// Uses `$SHELL` (falling back to `/bin/sh`) with `-l` for a login environment.
+    /// The child process calls `setsid()` via portable-pty, making it a session
+    /// leader so `kill_session` can signal the entire process group.
+    /// A dedicated OS thread reads PTY output into a bounded 256-slot channel
+    /// (~1 MB of 4 KB chunks), and a tokio task drains it into Tauri events
+    /// named `pty-output-{id}`. If the channel fills, output is dropped silently.
     pub fn spawn_shell(&self, app_handle: AppHandle, cwd: Option<String>) -> Result<u32, PtyError> {
         let id = self.inner.next_id.fetch_add(1, Ordering::Relaxed);
 
@@ -195,7 +208,10 @@ impl ProcessManager {
         Ok(id)
     }
 
-    /// Write data to a session's stdin.
+    /// Writes raw bytes to a session's PTY stdin and flushes immediately.
+    ///
+    /// Acquires the writer mutex; returns `WriteFailed` if the lock is poisoned
+    /// (indicating a prior panic) or if the underlying write/flush fails.
     pub fn write_stdin(&self, session_id: u32, data: &str) -> Result<(), PtyError> {
         let session = self
             .inner
@@ -219,7 +235,10 @@ impl ProcessManager {
         Ok(())
     }
 
-    /// Resize a session's PTY.
+    /// Resizes the PTY to the given dimensions, propagating SIGWINCH to the child.
+    ///
+    /// Pixel dimensions are always set to 0 (unused by terminal emulators).
+    /// Callers should validate that rows/cols are non-zero before calling.
     pub fn resize_pty(&self, session_id: u32, rows: u16, cols: u16) -> Result<(), PtyError> {
         let session = self
             .inner
@@ -244,7 +263,15 @@ impl ProcessManager {
         Ok(())
     }
 
-    /// Kill a session: SIGTERM on process group, 3s grace, then SIGKILL.
+    /// Terminates a PTY session with graceful escalation.
+    ///
+    /// Sends SIGTERM to the entire process group (via negative PGID), waits up
+    /// to 3 seconds for the lead process to exit, then escalates to SIGKILL if
+    /// it is still alive. After signaling, drops the master/writer FDs to EOF
+    /// the reader thread, notifies the tokio event emitter to shut down, and
+    /// joins the reader thread via `spawn_blocking` to avoid blocking the
+    /// async runtime. The session is removed from the map before signaling,
+    /// so concurrent calls with the same ID return `SessionNotFound`.
     pub async fn kill_session(&self, session_id: u32) -> Result<(), PtyError> {
         let session = self
             .inner
