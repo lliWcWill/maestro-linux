@@ -6,6 +6,12 @@ use core::ProcessManager;
 use core::session_manager::SessionManager;
 use core::worktree_manager::WorktreeManager;
 
+/// Entry point for the Tauri application.
+///
+/// Registers plugins (store, dialog), injects shared state (ProcessManager,
+/// SessionManager, WorktreeManager), verifies git availability at startup
+/// (non-fatal -- logs an error but does not abort), and mounts all IPC
+/// command handlers for the terminal, git, and session subsystems.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

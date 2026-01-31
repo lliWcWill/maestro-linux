@@ -22,12 +22,16 @@ fn dirs_fallback() -> PathBuf {
         .join("maestro")
 }
 
+/// Produces a 16-hex-char SHA-256 digest of the canonicalized repo path.
+/// Falls back to the raw path if canonicalization fails (e.g., path does not exist yet).
 fn repo_hash(repo_path: &Path) -> String {
     let canonical = std::fs::canonicalize(repo_path).unwrap_or_else(|_| repo_path.to_path_buf());
     let digest = Sha256::digest(canonical.to_string_lossy().as_bytes());
     format!("{:x}", digest)[..16].to_string()
 }
 
+/// Replaces filesystem-unsafe characters in branch names with hyphens.
+/// Covers `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`.
 fn sanitize_branch(branch: &str) -> String {
     branch
         .replace('/', "-")
@@ -41,9 +45,17 @@ fn sanitize_branch(branch: &str) -> String {
         .replace('|', "-")
 }
 
+/// Manages Maestro-owned git worktrees under a deterministic, repo-specific
+/// directory inside XDG data dirs.
+///
+/// Worktree paths are derived from a SHA-256 hash of the canonical repo path
+/// (truncated to 16 hex chars) so that different repos never collide, and a
+/// sanitized branch name so each branch gets its own subdirectory.
 pub struct WorktreeManager;
 
 impl WorktreeManager {
+    /// Creates a new stateless manager. All path computation is pure and
+    /// deterministic from the repo path and branch name.
     pub fn new() -> Self {
         Self
     }
@@ -55,8 +67,12 @@ impl WorktreeManager {
         worktree_base_dir().join(hash).join(sanitized)
     }
 
-    /// Create a worktree for a session.
-    /// Returns the worktree path on disk.
+    /// Creates a worktree for the given branch, returning its path on disk.
+    ///
+    /// Checks that the branch is not already checked out in another worktree
+    /// before creating (returns `BranchAlreadyCheckedOut` if so). Parent
+    /// directories are created automatically. The worktree checks out the
+    /// existing branch -- no new branch is created.
     pub async fn create(
         &self,
         branch: &str,
@@ -92,7 +108,8 @@ impl WorktreeManager {
         Ok(wt_path)
     }
 
-    /// Remove a worktree by path
+    /// Force-removes a worktree and prunes its git ref, then attempts to
+    /// clean up the empty parent directory (silently ignored if non-empty).
     pub async fn remove(&self, repo_path: &Path, wt_path: &Path) -> Result<(), GitError> {
         let git = Git::new(repo_path);
         git.worktree_remove(wt_path, true).await?;
@@ -106,7 +123,8 @@ impl WorktreeManager {
         Ok(())
     }
 
-    /// List worktrees managed by Maestro (those under our base dir)
+    /// Lists only worktrees that live under Maestro's managed base directory,
+    /// filtering out the main worktree and any manually created worktrees.
     pub async fn list_managed(&self, repo_path: &Path) -> Result<Vec<WorktreeInfo>, GitError> {
         let git = Git::new(repo_path);
         let all = git.worktree_list().await?;
@@ -120,7 +138,12 @@ impl WorktreeManager {
             .collect())
     }
 
-    /// Prune git worktree refs and scan for orphaned dirs
+    /// Prunes stale git worktree refs and removes orphaned directories.
+    ///
+    /// First runs `git worktree prune`, then scans the managed directory for
+    /// subdirectories that are no longer in git's worktree list. Orphaned
+    /// directories are deleted with `remove_dir_all`. No-ops gracefully if
+    /// the managed directory does not exist yet.
     pub async fn prune(&self, repo_path: &Path) -> Result<(), GitError> {
         let git = Git::new(repo_path);
         git.worktree_prune().await?;

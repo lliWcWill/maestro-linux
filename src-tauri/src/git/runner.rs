@@ -3,6 +3,10 @@ use tokio::process::Command;
 
 use super::error::GitError;
 
+/// Captured stdout/stderr from a completed git subprocess.
+///
+/// Provides convenience methods for common parsing patterns: `lines()` splits
+/// stdout into non-empty lines, and `trimmed()` returns whitespace-stripped stdout.
 #[derive(Debug)]
 pub struct GitOutput {
     pub stdout: String,
@@ -10,27 +14,41 @@ pub struct GitOutput {
 }
 
 impl GitOutput {
+    /// Splits stdout into non-empty lines, filtering out blank lines.
     pub fn lines(&self) -> Vec<&str> {
         self.stdout.lines().filter(|l| !l.is_empty()).collect()
     }
 
+    /// Returns stdout with leading/trailing whitespace removed.
     pub fn trimmed(&self) -> &str {
         self.stdout.trim()
     }
 }
 
+/// Low-level git command runner bound to a specific repository path.
+///
+/// All commands are invoked via `tokio::process::Command` with `git -C <repo>`,
+/// `GIT_TERMINAL_PROMPT=0` (prevents credential prompts from hanging), and
+/// `LC_ALL=C` (ensures English, parseable output). Subprocesses are killed
+/// on drop via `kill_on_drop(true)`.
 #[derive(Debug, Clone)]
 pub struct Git {
     repo_path: PathBuf,
 }
 
 impl Git {
+    /// Creates a runner targeting the given repository directory.
     pub fn new(repo_path: impl Into<PathBuf>) -> Self {
         Self {
             repo_path: repo_path.into(),
         }
     }
 
+    /// Executes a git subcommand and returns its captured output.
+    ///
+    /// Returns `GitNotFound` if the git binary is missing, `SpawnError` for
+    /// other I/O failures, and `CommandFailed` for non-zero exit codes.
+    /// Both stdout and stderr are decoded as UTF-8 (returns `InvalidUtf8` on failure).
     pub async fn run(&self, args: &[&str]) -> Result<GitOutput, GitError> {
         let mut cmd = Command::new("git");
         cmd.arg("-C")
@@ -67,6 +85,8 @@ impl Git {
         }
     }
 
+    /// Convenience wrapper that runs a git command in a different directory
+    /// by constructing a temporary `Git` instance for that path.
     pub async fn run_in(&self, path: &Path, args: &[&str]) -> Result<GitOutput, GitError> {
         Git::new(path).run(args).await
     }
