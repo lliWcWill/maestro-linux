@@ -1,6 +1,6 @@
 # Maestro Linux
 
-**Orchestrate multiple AI coding assistants in parallel — on Linux.**
+**Orchestrate multiple AI coding assistants in parallel on Linux.**
 
 A Tauri 2 desktop application that lets you run 1-12 AI coding sessions simultaneously, each in its own isolated git worktree. Linux port of [Maestro](https://github.com/its-maestro-baby/maestro) (macOS).
 
@@ -26,16 +26,16 @@ Maestro runs multiple AI sessions in parallel. Each session gets its own termina
 
 ### Implemented
 
-- **Multi-terminal session grid** — dynamic 1x1 to 3x4 layout with xterm.js, real-time PTY streaming via Tauri IPC
-- **Session lifecycle** — create, close, batch assign, and stop-all with process group isolation (`setsid` + `SIGTERM` to PGID)
-- **Git worktree isolation** — automatic worktree creation at `~/.local/share/maestro/worktrees/`, pruning on session close
-- **Git operations** — branch listing, checkout, log, diff, worktree add/remove via async Rust CLI wrapper
-- **Visual git graph** — GitKraken-style commit visualization with colored branch rails (TypeScript port of Swift layout engine)
-- **Multi-project tabs** — open multiple repositories in tabs, each with independent session grid and git state
-- **Persistent state** — workspace config, session state, and sidebar preferences survive restarts via Zustand + Tauri plugin-store
-- **Native folder picker** — OS dialog for project selection
-- **Config sidebar** — session count, mode selection, branch assignment, quick action pills, appearance toggle
-- **Multi-AI mode support** — Claude Code, Gemini CLI, OpenAI Codex, Plain Terminal (mode selection per session)
+- **Multi-terminal session grid** - dynamic 1x1 to 3x4 layout with xterm.js, real-time PTY streaming via Tauri IPC
+- **Session lifecycle** - create, close, batch assign, and stop-all with process group isolation (`setsid` + `SIGTERM` to PGID)
+- **Git worktree isolation** - automatic worktree creation at `~/.local/share/maestro/worktrees/`, pruning on session close
+- **Git operations** - branch listing, checkout, log, diff, worktree add/remove via async Rust CLI wrapper
+- **Visual git graph** - GitKraken-style commit visualization with colored branch rails (TypeScript port of Swift layout engine)
+- **Multi-project tabs** - open multiple repositories in tabs, each with independent session grid and git state
+- **Persistent state** - workspace config, session state, and sidebar preferences survive restarts via Zustand + Tauri plugin-store
+- **Native folder picker** - OS dialog for project selection
+- **Config sidebar** - session count, mode selection, branch assignment, quick action pills, appearance toggle
+- **Multi-AI mode support** - Claude Code, Gemini CLI, OpenAI Codex, Plain Terminal (mode selection per session)
 
 ### Coming Soon
 
@@ -153,13 +153,13 @@ maestro-linux/
 
 ## Acknowledgments
 
-- [Maestro (macOS)](https://github.com/its-maestro-baby/maestro) — the original, built by Jack. This project is a Linux port.
-- [Tauri](https://tauri.app) — lightweight desktop framework
-- [xterm.js](https://xtermjs.org) — terminal emulator for the web
-- [portable-pty](https://crates.io/crates/portable-pty) — cross-platform PTY interface
+- [Maestro (macOS)](https://github.com/its-maestro-baby/maestro) - the original, built by Jack. This project is a Linux port.
+- [Tauri](https://tauri.app) - lightweight desktop framework
+- [xterm.js](https://xtermjs.org) - terminal emulator for the web
+- [portable-pty](https://crates.io/crates/portable-pty) - cross-platform PTY interface
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.
