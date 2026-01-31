@@ -124,6 +124,11 @@ npm install -g @google/gemini-cli           # Gemini CLI
 npm install -g @openai/codex                # OpenAI Codex
 ```
 
+### Development Notes
+
+- Biome ignores build output via `files.includes` negated globs in `biome.json`.
+  If Biome changes ignore semantics in a future release, revisit that config.
+
 ---
 
 ## Project Structure

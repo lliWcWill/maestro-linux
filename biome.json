@@ -6,12 +6,12 @@
     "lineWidth": 100
   },
   "files": {
-    "_comment_experimentalScannerIgnores": "TODO: experimentalScannerIgnores may change or be renamed in future Biome releases — track upstream.",
-    "experimentalScannerIgnores": [
-      "**/node_modules/**",
-      "**/dist/**",
-      "src-tauri/target/**",
-      "src-tauri/gen/**"
+    "includes": [
+      "**/*",
+      "!!**/node_modules/**",
+      "!!**/dist/**",
+      "!!**/src-tauri/target/**",
+      "!!**/src-tauri/gen/**"
     ]
   },
   "linter": {
@@ -22,7 +22,7 @@
         "noUnknownAtRules": {
           "level": "error",
           "options": {
-            "ignoreAtRules": ["tailwind", "apply", "layer"]
+            "ignore": ["tailwind", "apply", "layer"]
           }
         }
       }

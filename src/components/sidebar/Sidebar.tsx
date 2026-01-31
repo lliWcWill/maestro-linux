@@ -46,6 +46,7 @@ const divider = <div className="h-px bg-maestro-border/30 my-1" />;
 const SIDEBAR_MIN_WIDTH = 180;
 const SIDEBAR_MAX_WIDTH = 320;
 const SIDEBAR_COLLAPSE_THRESHOLD = 60;
+const SIDEBAR_WIDTH_STEP = 4;
 
 const STATUS_DOT_CLASS: Record<BackendSessionStatus, string> = {
   Starting: "bg-maestro-orange",
@@ -74,6 +75,7 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
   const [width, setWidth] = useState(240);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; w: number } | null>(null);
+  const sidebarWidthClass = collapsed ? "w-0" : `sidebar-w-${width}`;
 
   const handleDragStart = useCallback(
     (e: React.MouseEvent) => {
@@ -84,10 +86,11 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
     [width],
   );
 
-  const clampWidth = useCallback(
-    (value: number) => Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, value)),
-    [],
-  );
+  const clampWidth = useCallback((value: number) => {
+    const clamped = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, value));
+    const snapped = Math.round(clamped / SIDEBAR_WIDTH_STEP) * SIDEBAR_WIDTH_STEP;
+    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, snapped));
+  }, []);
 
   const handleResizeKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -153,11 +156,11 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
   }, [isDragging, onCollapse, clampWidth]);
 
   return (
+    // Use a class-based width to avoid inline styles (CSP-friendly).
     <aside
-      style={!collapsed ? ({ "--sidebar-width": `${width}px` } as React.CSSProperties) : undefined}
-      className={`theme-transition no-select relative flex h-full w-[var(--sidebar-width)] flex-col border-r border-maestro-border bg-maestro-surface ${
+      className={`theme-transition no-select relative flex h-full flex-col border-r border-maestro-border bg-maestro-surface ${sidebarWidthClass} ${
         isDragging ? "" : "transition-all duration-200 ease-out"
-      } ${collapsed ? "!w-0 overflow-hidden border-r-0 opacity-0" : "opacity-100"}`}
+      } ${collapsed ? "overflow-hidden border-r-0 opacity-0" : "opacity-100"}`}
     >
       {/* Tab switcher */}
       <div className="flex shrink-0 border-b border-maestro-border">
@@ -395,7 +398,14 @@ function SessionsSection() {
 /* ── 4. Status ── */
 
 const AI_MODES: AiMode[] = ["Claude", "Gemini", "Codex", "Plain"];
-const SESSION_STATUSES: BackendSessionStatus[] = ["Starting", "Idle", "Working", "NeedsInput", "Done", "Error"];
+const SESSION_STATUSES: BackendSessionStatus[] = [
+  "Starting",
+  "Idle",
+  "Working",
+  "NeedsInput",
+  "Done",
+  "Error",
+];
 
 const MODE_ICON: Record<AiMode, React.ElementType> = {
   Claude: Bot,
@@ -438,7 +448,10 @@ function StatusSection() {
         {AI_MODES.map((mode) => {
           const ModeIcon = MODE_ICON[mode];
           return (
-            <div key={mode} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
+            <div
+              key={mode}
+              className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text"
+            >
               <ModeIcon size={12} className="text-maestro-purple shrink-0" />
               <span className="flex-1">{mode}:</span>
               <span className="font-semibold text-maestro-text">{counts.mode[mode]}</span>
@@ -447,7 +460,10 @@ function StatusSection() {
         })}
         {/* Session status buckets */}
         {SESSION_STATUSES.map((st) => (
-          <div key={st} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
+          <div
+            key={st}
+            className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text"
+          >
             <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[st]}`} />
             <span className="flex-1">{STATUS_LABEL[st]}:</span>
             <span className="font-semibold text-maestro-text">{counts.status[st]}</span>
