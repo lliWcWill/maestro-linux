@@ -74,7 +74,13 @@ impl ProcessManager {
     /// named `pty-output-{id}`. If the channel fills, output is dropped and a
     /// log message is emitted to make the loss visible.
     pub fn spawn_shell(&self, app_handle: AppHandle, cwd: Option<String>) -> Result<u32, PtyError> {
-        let id = self.inner.next_id.fetch_add(1, Ordering::Relaxed);
+        let id = self
+            .inner
+            .next_id
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                current.checked_add(1)
+            })
+            .map_err(|_| PtyError::id_overflow())?;
 
         let pty_system = native_pty_system();
 

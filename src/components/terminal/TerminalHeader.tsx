@@ -46,6 +46,13 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   error: "Error",
 };
 
+const providerConfig: Record<AIProvider, { icon: typeof BrainCircuit; label: string }> = {
+  claude: { icon: BrainCircuit, label: "Claude Code" },
+  gemini: { icon: Sparkles, label: "Gemini CLI" },
+  codex: { icon: Code2, label: "Codex" },
+  plain: { icon: Terminal, label: "Terminal" },
+};
+
 export function TerminalHeader({
   sessionId,
   provider = "claude",
@@ -58,12 +65,6 @@ export function TerminalHeader({
   onKill,
   onLaunch,
 }: TerminalHeaderProps) {
-  const providerConfig: Record<AIProvider, { icon: typeof BrainCircuit; label: string }> = {
-    claude: { icon: BrainCircuit, label: "Claude Code" },
-    gemini: { icon: Sparkles, label: "Gemini CLI" },
-    codex: { icon: Code2, label: "Codex" },
-    plain: { icon: Terminal, label: "Terminal" },
-  };
   const { icon: ProviderIcon, label: providerLabel } = providerConfig[provider];
 
   return (
@@ -74,6 +75,8 @@ export function TerminalHeader({
         <button
           type="button"
           aria-label="Select AI provider"
+          aria-disabled="true"
+          title="Provider selection not yet available"
           className="flex shrink-0 items-center gap-0.5 text-maestro-muted hover:text-maestro-text"
         >
           <ProviderIcon
@@ -95,6 +98,7 @@ export function TerminalHeader({
         </span>
 
         {/* Terminal count badge */}
+        {/* TODO: Replace hardcoded "1" with actual terminal count prop */}
         <span className="shrink-0 rounded-full bg-maestro-muted/10 px-1.5 py-px text-[9px] font-medium text-maestro-muted">
           1
         </span>
@@ -114,6 +118,7 @@ export function TerminalHeader({
         </span>
 
         {/* Git arrows + change count */}
+        {/* TODO: Replace hardcoded "0" with actual git change count prop */}
         <span className="flex shrink-0 items-center gap-0.5 text-maestro-muted">
           <GitCompareArrows size={11} />
           <span className="text-[9px]">0</span>
@@ -131,6 +136,8 @@ export function TerminalHeader({
         <button
           type="button"
           aria-label={`Select branch, current: ${branchName || "none"}`}
+          aria-disabled="true"
+          title="Branch selection not yet available"
           className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
         >
           <GitBranch size={10} />

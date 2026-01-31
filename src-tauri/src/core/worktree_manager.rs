@@ -26,31 +26,31 @@ fn dirs_fallback() -> PathBuf {
 
 /// Produces a 16-hex-char SHA-256 digest of the canonicalized repo path.
 /// Falls back to the raw path if canonicalization fails (e.g., path does not exist yet).
-fn repo_hash(repo_path: &Path) -> String {
-    let canonical = std::fs::canonicalize(repo_path).unwrap_or_else(|_| repo_path.to_path_buf());
+async fn repo_hash(repo_path: &Path) -> String {
+    let canonical = tokio::fs::canonicalize(repo_path)
+        .await
+        .unwrap_or_else(|_| repo_path.to_path_buf());
     let digest = Sha256::digest(canonical.to_string_lossy().as_bytes());
     format!("{:x}", digest)[..16].to_string()
 }
 
 /// Replaces filesystem-unsafe characters in branch names with hyphens.
 /// Covers `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`.
+/// Also handles `.` and `..` as special cases returning `unnamed-branch`.
 fn sanitize_branch(branch: &str) -> String {
-    let sanitized = branch
-        .replace('/', "-")
-        .replace('\\', "-")
-        .replace(':', "-")
-        .replace('*', "-")
-        .replace('?', "-")
-        .replace('"', "-")
-        .replace('<', "-")
-        .replace('>', "-")
-        .replace('|', "-");
-
-    if sanitized.is_empty() {
-        "unnamed-branch".to_string()
-    } else {
-        sanitized
+    if branch.is_empty() || branch == "." || branch == ".." {
+        return "unnamed-branch".to_string();
     }
+
+    let sanitized: String = branch
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '-',
+            _ => c,
+        })
+        .collect();
+
+    sanitized
 }
 
 /// Manages Maestro-owned git worktrees under a deterministic, repo-specific
@@ -75,8 +75,8 @@ impl WorktreeManager {
     }
 
     /// Compute the worktree path for a given repo + branch
-    fn worktree_path(&self, repo_path: &Path, branch: &str) -> PathBuf {
-        let hash = repo_hash(repo_path);
+    async fn worktree_path(&self, repo_path: &Path, branch: &str) -> PathBuf {
+        let hash = repo_hash(repo_path).await;
         let sanitized = sanitize_branch(branch);
         worktree_base_dir().join(hash).join(sanitized)
     }
@@ -107,7 +107,7 @@ impl WorktreeManager {
             }
         }
 
-        let wt_path = self.worktree_path(repo_path, branch);
+        let wt_path = self.worktree_path(repo_path, branch).await;
 
         // Create parent directories
         if let Some(parent) = wt_path.parent() {
@@ -162,7 +162,7 @@ impl WorktreeManager {
         git.worktree_prune().await?;
 
         // Scan managed directory for orphans not in git worktree list
-        let hash = repo_hash(repo_path);
+        let hash = repo_hash(repo_path).await;
         let managed_dir = worktree_base_dir().join(&hash);
 
         let managed_exists = tokio::fs::try_exists(&managed_dir)
@@ -197,7 +197,11 @@ impl WorktreeManager {
                     .await
                     .unwrap_or_else(|_| path.clone());
                 let entry_key = canonical_entry.to_string_lossy().to_string();
-                if !active.contains(&entry_key) && path.is_dir() {
+                let is_dir = tokio::fs::metadata(&path)
+                    .await
+                    .map(|m| m.is_dir())
+                    .unwrap_or(false);
+                if !active.contains(&entry_key) && is_dir {
                     log::info!("Removing orphaned worktree dir: {}", path.display());
                     let _ = tokio::fs::remove_dir_all(&path).await;
                 }

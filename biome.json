@@ -6,6 +6,7 @@
     "lineWidth": 100
   },
   "files": {
+    "_comment_experimentalScannerIgnores": "TODO: experimentalScannerIgnores may change or be renamed in future Biome releases — track upstream.",
     "experimentalScannerIgnores": [
       "**/node_modules/**",
       "**/dist/**",
@@ -18,7 +19,12 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": {
+          "level": "error",
+          "options": {
+            "ignoreAtRules": ["tailwind", "apply", "layer"]
+          }
+        }
       }
     }
   },

@@ -227,3 +227,11 @@
 .animate-pod-wake {
   animation: pod-wake 600ms ease-out forwards;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .animate-glow,
+  .animate-pod-wake {
+    animation: none !important;
+  }
+}

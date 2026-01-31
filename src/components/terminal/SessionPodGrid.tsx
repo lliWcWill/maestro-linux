@@ -23,7 +23,7 @@ export function SessionPodGrid({ sessionCount = 6 }: SessionPodGridProps) {
               <BrainCircuit
                 size={28}
                 strokeWidth={1.5}
-                className="animate-breathe text-violet-500 drop-shadow-[0_0_6px_rgba(139,92,246,0.6)]"
+                className="motion-safe:animate-breathe motion-reduce:animate-none text-violet-500 drop-shadow-[0_0_6px_rgba(139,92,246,0.6)]"
               />
               <span className="text-lg font-semibold text-maestro-text">#{n}</span>
             </div>
@@ -32,6 +32,7 @@ export function SessionPodGrid({ sessionCount = 6 }: SessionPodGridProps) {
       </div>
 
       {/* Status labels below each pod */}
+      {/* TODO: Replace static "Idle" with actual per-pod status from session store */}
       <div className={`grid ${gridClass} gap-4`}>
         {pods.map((n) => (
           <div key={n} className="w-24 text-center">

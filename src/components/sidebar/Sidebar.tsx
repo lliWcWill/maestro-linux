@@ -154,10 +154,10 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
 
   return (
     <aside
-      style={!collapsed ? { width: `${width}px` } : undefined}
-      className={`theme-transition no-select relative flex h-full flex-col border-r border-maestro-border bg-maestro-surface ${
+      style={!collapsed ? ({ "--sidebar-width": `${width}px` } as React.CSSProperties) : undefined}
+      className={`theme-transition no-select relative flex h-full w-[var(--sidebar-width)] flex-col border-r border-maestro-border bg-maestro-surface ${
         isDragging ? "" : "transition-all duration-200 ease-out"
-      } ${collapsed ? "w-0 overflow-hidden border-r-0 opacity-0" : "opacity-100"}`}
+      } ${collapsed ? "!w-0 overflow-hidden border-r-0 opacity-0" : "opacity-100"}`}
     >
       {/* Tab switcher */}
       <div className="flex shrink-0 border-b border-maestro-border">
@@ -394,6 +394,16 @@ function SessionsSection() {
 
 /* ── 4. Status ── */
 
+const AI_MODES: AiMode[] = ["Claude", "Gemini", "Codex", "Plain"];
+const SESSION_STATUSES: BackendSessionStatus[] = ["Starting", "Idle", "Working", "NeedsInput", "Done", "Error"];
+
+const MODE_ICON: Record<AiMode, React.ElementType> = {
+  Claude: Bot,
+  Gemini: Sparkles,
+  Codex: Cpu,
+  Plain: Globe,
+};
+
 function StatusSection() {
   const sessions = useSessionStore((s) => s.sessions);
   const counts = sessions.reduce(
@@ -424,30 +434,25 @@ function StatusSection() {
     <div className={cardClass}>
       <SectionHeader icon={Activity} label="Status" iconColor="text-maestro-accent" />
       <div className="space-y-0.5">
-        {/* Claude */}
-        <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
-          <Bot size={12} className="text-maestro-purple shrink-0" />
-          <span className="flex-1">Claude:</span>
-          <span className="font-semibold text-maestro-text">{counts.mode.Claude}</span>
-        </div>
-        {/* Gemini */}
-        <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
-          <Sparkles size={12} className="text-maestro-purple shrink-0" />
-          <span className="flex-1">Gemini:</span>
-          <span className="font-semibold text-maestro-text">{counts.mode.Gemini}</span>
-        </div>
-        {/* Idle */}
-        <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-accent" />
-          <span className="flex-1">Idle:</span>
-          <span className="font-semibold text-maestro-text">{counts.status.Idle}</span>
-        </div>
-        {/* Working */}
-        <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
-          <span className="flex-1">Working:</span>
-          <span className="font-semibold text-maestro-text">{counts.status.Working}</span>
-        </div>
+        {/* AI mode buckets */}
+        {AI_MODES.map((mode) => {
+          const ModeIcon = MODE_ICON[mode];
+          return (
+            <div key={mode} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
+              <ModeIcon size={12} className="text-maestro-purple shrink-0" />
+              <span className="flex-1">{mode}:</span>
+              <span className="font-semibold text-maestro-text">{counts.mode[mode]}</span>
+            </div>
+          );
+        })}
+        {/* Session status buckets */}
+        {SESSION_STATUSES.map((st) => (
+          <div key={st} className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[st]}`} />
+            <span className="flex-1">{STATUS_LABEL[st]}:</span>
+            <span className="font-semibold text-maestro-text">{counts.status[st]}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

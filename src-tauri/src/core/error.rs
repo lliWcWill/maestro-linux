@@ -10,6 +10,7 @@ pub enum PtyErrorCode {
     WriteFailed,
     ResizeFailed,
     KillFailed,
+    IdOverflow,
 }
 
 /// Structured PTY error with a machine-readable code and human-readable message.
@@ -69,6 +70,14 @@ impl PtyError {
         Self {
             code: PtyErrorCode::KillFailed,
             message: msg.into(),
+        }
+    }
+
+    /// Atomic session ID counter overflowed u32::MAX.
+    pub fn id_overflow() -> Self {
+        Self {
+            code: PtyErrorCode::IdOverflow,
+            message: "Session ID counter overflowed u32::MAX".to_string(),
         }
     }
 }

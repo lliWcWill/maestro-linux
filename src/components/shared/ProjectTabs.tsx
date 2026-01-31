@@ -1,5 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, PanelLeft, Plus, Square, X } from "lucide-react";
+import { useCallback, useMemo, useRef } from "react";
 
 export type ProjectTab = {
   id: string;
@@ -16,6 +17,12 @@ interface ProjectTabsProps {
   sidebarOpen: boolean;
 }
 
+/** Derive a status-dot color class from tab state. */
+function statusDotColor(tab: ProjectTab): string {
+  // TODO: derive from real tab status once WorkspaceTab carries a status field
+  return tab.active ? "bg-maestro-green" : "bg-maestro-muted";
+}
+
 export function ProjectTabs({
   tabs,
   onSelectTab,
@@ -24,7 +31,16 @@ export function ProjectTabs({
   onToggleSidebar,
   sidebarOpen,
 }: ProjectTabsProps) {
-  const appWindow = getCurrentWindow();
+  const appWindow = useMemo(() => getCurrentWindow(), []);
+  const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const setTabRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      tabRefs.current.set(id, el);
+    } else {
+      tabRefs.current.delete(id);
+    }
+  }, []);
 
   return (
     <div
@@ -55,6 +71,7 @@ export function ProjectTabs({
             tabs.map((tab) => (
               <div
                 key={tab.id}
+                ref={(el) => setTabRef(tab.id, el)}
                 role="tab"
                 aria-selected={tab.active}
                 tabIndex={tab.active ? 0 : -1}
@@ -63,11 +80,17 @@ export function ProjectTabs({
                   if (e.key === "ArrowRight") {
                     const idx = tabs.findIndex((t) => t.id === tab.id);
                     const next = tabs[(idx + 1) % tabs.length];
-                    if (next) onSelectTab(next.id);
+                    if (next) {
+                      onSelectTab(next.id);
+                      tabRefs.current.get(next.id)?.focus();
+                    }
                   } else if (e.key === "ArrowLeft") {
                     const idx = tabs.findIndex((t) => t.id === tab.id);
                     const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
-                    if (prev) onSelectTab(prev.id);
+                    if (prev) {
+                      onSelectTab(prev.id);
+                      tabRefs.current.get(prev.id)?.focus();
+                    }
                   } else if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     onSelectTab(tab.id);
@@ -80,7 +103,7 @@ export function ProjectTabs({
                 }`}
               >
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-maestro-green" />
+                  <span className={`h-2 w-2 rounded-full ${statusDotColor(tab)}`} />
                   <span>{tab.name}</span>
                 </span>
                 <button

@@ -140,7 +140,6 @@ export function TerminalView({ sessionId, status = "idle", onKill }: TerminalVie
         brightCyan: "#b3f0ff",
         brightWhite: "#f0f6fc",
       },
-      allowProposedApi: true,
     });
 
     const fitAddon = new FitAddon();

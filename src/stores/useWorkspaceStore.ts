@@ -10,14 +10,12 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
  * @property id - Random UUID generated on creation; stable across persisted sessions.
  * @property projectPath - Absolute filesystem path; used as the dedup key in `openProject`.
  * @property active - Exactly one tab should be active at a time; enforced by store actions.
- * @property sessions - Reserved for future per-tab session tracking (currently unused).
  */
 export type WorkspaceTab = {
   id: string;
   name: string;
   projectPath: string;
   active: boolean;
-  sessions: string[];
 };
 
 /** Read-only slice of the workspace store; persisted to disk via Zustand `persist`. */
@@ -76,6 +74,7 @@ const tauriStorage: StateStorage = {
       await lazyStore.save();
     } catch (err) {
       console.error(`tauriStorage.removeItem("${name}") failed:`, err);
+      throw err; // Re-throw for consistency with setItem
     }
   },
 };
@@ -126,7 +125,7 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()(
         set({
           tabs: [
             ...tabs.map((t) => ({ ...t, active: false })),
-            { id, name, projectPath: path, active: true, sessions: [] },
+            { id, name, projectPath: path, active: true },
           ],
         });
       },
