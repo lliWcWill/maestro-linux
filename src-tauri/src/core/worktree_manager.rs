@@ -166,19 +166,29 @@ impl WorktreeManager {
             return Ok(());
         }
 
-        let active: Vec<String> = git
+        let active_raw: Vec<String> = git
             .worktree_list()
             .await?
             .iter()
             .map(|wt| wt.path.clone())
             .collect();
 
+        // Canonicalize active paths for reliable comparison; fall back to raw path
+        let mut active: Vec<PathBuf> = Vec::with_capacity(active_raw.len());
+        for raw in &active_raw {
+            let p = Path::new(raw);
+            let canonical = tokio::fs::canonicalize(p).await.unwrap_or_else(|_| p.to_path_buf());
+            active.push(canonical);
+        }
+
         if let Ok(mut entries) = tokio::fs::read_dir(&managed_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let path = entry.path();
-                let path_str = path.to_string_lossy().to_string();
-                if !active.contains(&path_str) && path.is_dir() {
-                    log::info!("Removing orphaned worktree dir: {}", path_str);
+                let canonical_entry = tokio::fs::canonicalize(&path)
+                    .await
+                    .unwrap_or_else(|_| path.clone());
+                if !active.contains(&canonical_entry) && path.is_dir() {
+                    log::info!("Removing orphaned worktree dir: {}", path.display());
                     let _ = tokio::fs::remove_dir_all(&path).await;
                 }
             }

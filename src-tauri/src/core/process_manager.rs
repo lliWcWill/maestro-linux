@@ -148,6 +148,10 @@ impl ProcessManager {
                             // blocking_send is used because this is an OS thread, not async.
                             // If the channel is full or closed, we break out of the loop.
                             if tx.blocking_send(buf[..n].to_vec()).is_err() {
+                                log::warn!(
+                                    "PTY reader {id}: channel send failed, dropping {} bytes",
+                                    n
+                                );
                                 break; // Channel full or receiver dropped
                             }
                         }

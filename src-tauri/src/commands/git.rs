@@ -49,13 +49,13 @@ pub async fn git_worktree_list(repo_path: String) -> Result<Vec<WorktreeInfo>, G
 }
 
 /// Exposes `Git::worktree_add` to the frontend.
-/// Creates a new worktree at `path`, optionally on a new branch from `base_ref`.
+/// Creates a new worktree at `path`, optionally on a new branch from `checkout_ref`.
 #[tauri::command]
 pub async fn git_worktree_add(
     repo_path: String,
     path: String,
     new_branch: Option<String>,
-    base_ref: Option<String>,
+    checkout_ref: Option<String>,
 ) -> Result<WorktreeInfo, GitError> {
     validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
@@ -63,7 +63,7 @@ pub async fn git_worktree_add(
     git.worktree_add(
         &wt_path,
         new_branch.as_deref(),
-        base_ref.as_deref(),
+        checkout_ref.as_deref(),
     )
     .await
 }

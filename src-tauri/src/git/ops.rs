@@ -136,7 +136,7 @@ impl Git {
         let mut current_branch: Option<String> = None;
         let mut current_bare = false;
 
-        for line in output.stdout.lines() {
+        for line in output.lines() {
             if let Some(path) = line.strip_prefix("worktree ") {
                 // Save previous entry if we have one
                 if !current_path.is_empty() {
@@ -176,14 +176,14 @@ impl Git {
     /// Creates a new worktree at the given path, optionally on a new branch.
     ///
     /// If `new_branch` is provided, passes `-b <branch>` to create it.
-    /// If `base_ref` is provided, the new worktree starts from that ref.
+    /// If `checkout_ref` is provided, the new worktree checks out that ref.
     /// After creation, reads back the HEAD and branch from the new worktree
     /// directory to return accurate metadata.
     pub async fn worktree_add(
         &self,
         path: &Path,
         new_branch: Option<&str>,
-        base_ref: Option<&str>,
+        checkout_ref: Option<&str>,
     ) -> Result<WorktreeInfo, GitError> {
         let path_str = path.to_string_lossy();
         let mut args = vec!["worktree", "add"];
@@ -198,10 +198,10 @@ impl Git {
 
         args.push(&path_str);
 
-        let base_ref_owned;
-        if let Some(base) = base_ref {
-            base_ref_owned = base.to_string();
-            args.push(&base_ref_owned);
+        let checkout_ref_owned;
+        if let Some(cr) = checkout_ref {
+            checkout_ref_owned = cr.to_string();
+            args.push(&checkout_ref_owned);
         }
 
         self.run(&args).await?;
@@ -210,10 +210,23 @@ impl Git {
         let head_output = self.run_in(path, &["rev-parse", "HEAD"]).await?;
         let branch_output = self.run_in(path, &["symbolic-ref", "--short", "HEAD"]).await;
 
+        let branch = match branch_output {
+            Ok(o) => Some(o.trimmed().to_string()),
+            Err(GitError::CommandFailed { ref stderr, .. })
+                if stderr.contains("not a symbolic reference") =>
+            {
+                None // Detached HEAD
+            }
+            Err(e) => {
+                log::warn!("symbolic-ref in worktree {:?} failed unexpectedly: {e}", path);
+                None
+            }
+        };
+
         Ok(WorktreeInfo {
             path: path.to_string_lossy().to_string(),
             head: head_output.trimmed().to_string(),
-            branch: branch_output.ok().map(|o| o.trimmed().to_string()),
+            branch,
             is_bare: false,
         })
     }

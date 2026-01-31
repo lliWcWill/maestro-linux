@@ -143,7 +143,7 @@ function App() {
             onStopAll={() => {
               // Kill all running sessions via the session store
               const sessions = useSessionStore.getState().sessions;
-              sessions.forEach((s) => killSession(s.id).catch(console.error));
+              void Promise.all(sessions.map((s) => killSession(s.id).catch(console.error)));
               setSessionsLaunched(false);
             }}
           />

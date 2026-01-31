@@ -59,6 +59,7 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
   const [error, setError] = useState<string | null>(null);
   const sessionsRef = useRef<number[]>([]);
   const mounted = useRef(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     sessionsRef.current = sessions;
@@ -87,6 +88,7 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
     return () => {
       cancelled = true;
       mounted.current = false;
+      isMountedRef.current = false;
       for (const id of sessionsRef.current) {
         killSession(id).catch(console.error);
       }
@@ -141,12 +143,18 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
             setError(null);
             spawnShell(projectPath)
               .then((id) => {
+                if (!isMountedRef.current) {
+                  killSession(id).catch(console.error);
+                  return;
+                }
                 mounted.current = true;
                 setSessions([id]);
               })
               .catch((err) => {
                 console.error(err);
-                setError("Failed to start terminal session");
+                if (isMountedRef.current) {
+                  setError("Failed to start terminal session");
+                }
               });
           }}
           className="rounded bg-maestro-border px-3 py-1.5 text-xs text-maestro-text hover:bg-maestro-muted/20"

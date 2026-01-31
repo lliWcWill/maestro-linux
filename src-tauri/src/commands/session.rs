@@ -10,8 +10,8 @@ pub async fn get_sessions(state: State<'_, SessionManager>) -> Result<Vec<Sessio
 }
 
 /// Exposes `SessionManager::create_session` to the frontend.
-/// Registers a new session with `Starting` status; silently overwrites if
-/// the ID already exists.
+/// Registers a new session with `Starting` status. Returns an error if the
+/// session ID already exists.
 #[tauri::command]
 pub async fn create_session(
     state: State<'_, SessionManager>,

@@ -14,7 +14,7 @@ pub async fn spawn_shell(
     cwd: Option<String>,
 ) -> Result<u32, PtyError> {
     // Validate cwd if provided: must exist and be a directory
-    if let Some(ref dir) = cwd {
+    let canonical_cwd = if let Some(ref dir) = cwd {
         let path = std::path::Path::new(dir);
         let canonical = path
             .canonicalize()
@@ -24,9 +24,12 @@ pub async fn spawn_shell(
                 "cwd '{dir}' is not a directory"
             )));
         }
-    }
+        Some(canonical.to_string_lossy().into_owned())
+    } else {
+        None
+    };
     let pm = state.inner().clone();
-    pm.spawn_shell(app_handle, cwd)
+    pm.spawn_shell(app_handle, canonical_cwd)
 }
 
 /// Exposes `ProcessManager::write_stdin` to the frontend.

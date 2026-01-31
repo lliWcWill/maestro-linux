@@ -7,14 +7,20 @@ const ACTIONS = [
   { label: "Lint & Format", icon: Wrench, color: "text-maestro-purple", fill: false },
 ] as const;
 
-export function QuickActionPills() {
+interface QuickActionPillsProps {
+  onAction?: (label: string) => void;
+}
+
+export function QuickActionPills({ onAction }: QuickActionPillsProps) {
   return (
     <div className="no-select flex shrink-0 items-center gap-1 border-t border-maestro-border bg-maestro-surface px-2 py-1">
       {ACTIONS.map((a) => (
         <button
           type="button"
           key={a.label}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
+          disabled={!onAction}
+          onClick={() => onAction?.(a.label)}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text${!onAction ? " opacity-50 cursor-not-allowed" : ""}`}
         >
           <a.icon
             size={9}

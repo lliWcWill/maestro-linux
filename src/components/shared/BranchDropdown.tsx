@@ -23,6 +23,7 @@ export function BranchDropdown({
 }: BranchDropdownProps) {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [focusIndex, setFocusIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,7 @@ export function BranchDropdown({
       .catch((err) => {
         console.error("Failed to fetch branches:", err);
         if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load branches");
           setLoading(false);
         }
       });
@@ -95,8 +97,10 @@ export function BranchDropdown({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Bail out if the dropdown is no longer in the DOM (e.g. modal overlay)
+      if (!dropdownRef.current || !document.contains(dropdownRef.current)) return;
       const activeEl = document.activeElement;
-      const isDropdownFocused = dropdownRef.current?.contains(activeEl as Node);
+      const isDropdownFocused = dropdownRef.current.contains(activeEl as Node);
       const isBodyFocused = activeEl === document.body;
       if (isDropdownFocused || isBodyFocused) {
         handleKeyDown(e);
@@ -178,7 +182,12 @@ export function BranchDropdown({
             Loading branches...
           </div>
         )}
-        {!loading && branches.length === 0 && (
+        {!loading && error && (
+          <div className="px-3 py-2 text-sm text-maestro-red">
+            {error}
+          </div>
+        )}
+        {!loading && !error && branches.length === 0 && (
           <div className="px-3 py-2 text-sm text-maestro-muted">
             No branches found
           </div>

@@ -64,6 +64,7 @@ pub fn run() {
 async fn verify_git_available() -> Result<String, String> {
     let output = tokio::process::Command::new("git")
         .arg("--version")
+        .kill_on_drop(true)
         .output()
         .await
         .map_err(|e| format!("Failed to run git: {e}"))?;
