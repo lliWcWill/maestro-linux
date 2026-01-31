@@ -9,7 +9,7 @@ export function useOpenProject(): () => Promise<void> {
     try {
       const path = await pickProjectFolder();
       if (path) {
-        openProject(path);
+        await openProject(path);
       }
     } catch (err) {
       console.error("Failed to open project folder:", err);

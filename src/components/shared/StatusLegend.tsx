@@ -3,7 +3,7 @@ const STATUSES = [
   { label: "Idle", colorClass: "bg-blue-400" },
   { label: "Working", colorClass: "bg-emerald-400" },
   { label: "Needs Input", colorClass: "bg-yellow-300" },
-  { label: "Done", colorClass: "bg-blue-400/60" },
+  { label: "Done", colorClass: "bg-green-400" },
   { label: "Error", colorClass: "bg-red-400" },
 ] as const;
 

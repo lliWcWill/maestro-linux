@@ -26,7 +26,9 @@ export function BranchDropdown({
   onSelect,
   onClose,
 }: BranchDropdownProps) {
-  const [focusIndex, setFocusIndex] = useState(-1);
+  const [focusIndex, setFocusIndex] = useState(() =>
+    MOCK_BRANCHES.indexOf(currentBranch)
+  );
   const listRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -74,8 +76,16 @@ export function BranchDropdown({
   );
 
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    const handler = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isDropdownFocused = dropdownRef.current?.contains(activeEl as Node);
+      const isBodyFocused = activeEl === document.body;
+      if (isDropdownFocused || isBodyFocused) {
+        handleKeyDown(e);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [handleKeyDown]);
 
   // Scroll focused item into view

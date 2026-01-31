@@ -60,6 +60,7 @@ function App() {
   useEffect(() => {
     if (!activeTab) {
       setSessionsLaunched(false);
+      setLiveSessionCount(0);
     }
   }, [activeTab]);
 
@@ -94,11 +95,11 @@ function App() {
             {appState === "project-idle" && (
               <IdleLandingView onAdd={handleAddSession} />
             )}
-            {appState === "sessions-active" && (
+            {appState === "sessions-active" && activeTab && (
               <TerminalGrid
                 ref={termGridRef}
-                key={activeTab!.id}
-                projectPath={activeTab!.projectPath}
+                key={activeTab.id}
+                projectPath={activeTab.projectPath}
                 onSessionCountChange={handleSessionCountChange}
               />
             )}

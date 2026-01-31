@@ -65,14 +65,19 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
 
   // Auto-respawn when all sessions close (not initial mount, not error)
   useEffect(() => {
+    let cancelled = false;
     if (sessions.length === 0 && mounted.current && !error) {
       spawnShell(projectPath)
-        .then((id) => setSessions([id]))
+        .then((id) => {
+          if (!cancelled) setSessions([id]);
+          else killSession(id).catch(console.error);
+        })
         .catch((err) => {
           console.error(err);
-          setError("Failed to restart terminal session");
+          if (!cancelled) setError("Failed to restart terminal session");
         });
     }
+    return () => { cancelled = true; };
   }, [sessions.length, error, projectPath]);
 
   const handleKill = useCallback((sessionId: number) => {
@@ -80,11 +85,19 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
   }, []);
 
   const addSession = useCallback(() => {
-    if (sessions.length >= MAX_SESSIONS) return;
+    if (sessionsRef.current.length >= MAX_SESSIONS) return;
     spawnShell(projectPath)
-      .then((id) => setSessions((prev) => [...prev, id]))
+      .then((id) =>
+        setSessions((prev) => {
+          if (prev.length >= MAX_SESSIONS) {
+            killSession(id).catch(console.error);
+            return prev;
+          }
+          return [...prev, id];
+        })
+      )
       .catch(console.error);
-  }, [sessions.length, projectPath]);
+  }, [projectPath]);
 
   useImperativeHandle(ref, () => ({ addSession }), [addSession]);
 
