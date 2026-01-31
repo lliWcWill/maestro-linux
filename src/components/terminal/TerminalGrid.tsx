@@ -20,7 +20,11 @@ function gridClass(count: number): string {
   }
 }
 
-export function TerminalGrid() {
+interface TerminalGridProps {
+  projectPath?: string;
+}
+
+export function TerminalGrid({ projectPath }: TerminalGridProps) {
   const [sessions, setSessions] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const sessionsRef = useRef<number[]>([]);
@@ -33,7 +37,7 @@ export function TerminalGrid() {
   useEffect(() => {
     let cancelled = false;
 
-    spawnShell()
+    spawnShell(projectPath)
       .then((id) => {
         if (!cancelled) {
           setSessions([id]);
@@ -69,7 +73,7 @@ export function TerminalGrid() {
         <button
           onClick={() => {
             setError(null);
-            spawnShell()
+            spawnShell(projectPath)
               .then((id) => setSessions([id]))
               .catch((err) => {
                 console.error(err);
