@@ -1,5 +1,5 @@
-import { Plus, X, PanelLeft, Minus, Square } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Minus, PanelLeft, Plus, Square, X } from "lucide-react";
 
 export type ProjectTab = {
   id: string;
@@ -48,11 +48,7 @@ export function ProjectTabs({
 
         <div className="mx-1 h-4 w-px bg-maestro-border" />
 
-        <div
-          role="tablist"
-          aria-label="Open projects"
-          className="flex items-center gap-0.5"
-        >
+        <div role="tablist" aria-label="Open projects" className="flex items-center gap-0.5">
           {tabs.length === 0 ? (
             <span className="px-2 text-xs text-maestro-muted">No projects</span>
           ) : (

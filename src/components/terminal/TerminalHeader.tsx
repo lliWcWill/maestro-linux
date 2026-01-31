@@ -1,23 +1,17 @@
 import {
   BrainCircuit,
-  Sparkles,
+  CheckCircle,
   ChevronDown,
+  Code2,
   GitBranch,
   GitCompareArrows,
-  CheckCircle,
   Settings,
+  Sparkles,
   Terminal,
-  Code2,
   X,
 } from "lucide-react";
 
-export type SessionStatus =
-  | "idle"
-  | "starting"
-  | "working"
-  | "needs-input"
-  | "done"
-  | "error";
+export type SessionStatus = "idle" | "starting" | "working" | "needs-input" | "done" | "error";
 
 export type AIProvider = "claude" | "gemini" | "codex" | "plain";
 
@@ -77,8 +71,16 @@ export function TerminalHeader({
       {/* Left cluster */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {/* AI provider icon + dropdown */}
-        <button type="button" aria-label="Select AI provider" className="flex shrink-0 items-center gap-0.5 text-maestro-muted hover:text-maestro-text">
-          <ProviderIcon size={18} strokeWidth={1.5} className="text-violet-500 drop-shadow-[0_0_4px_rgba(139,92,246,0.5)]" />
+        <button
+          type="button"
+          aria-label="Select AI provider"
+          className="flex shrink-0 items-center gap-0.5 text-maestro-muted hover:text-maestro-text"
+        >
+          <ProviderIcon
+            size={18}
+            strokeWidth={1.5}
+            className="text-violet-500 drop-shadow-[0_0_4px_rgba(139,92,246,0.5)]"
+          />
           <ChevronDown size={9} className="text-maestro-muted/60" />
         </button>
 
@@ -119,9 +121,7 @@ export function TerminalHeader({
 
         {/* Truncated status message */}
         {statusMessage && (
-          <span className="min-w-0 truncate text-[10px] text-maestro-muted">
-            {statusMessage}
-          </span>
+          <span className="min-w-0 truncate text-[10px] text-maestro-muted">{statusMessage}</span>
         )}
       </div>
 
@@ -130,7 +130,7 @@ export function TerminalHeader({
         {/* Branch selector */}
         <button
           type="button"
-          aria-label={`Select branch, current: ${branchName || 'none'}`}
+          aria-label={`Select branch, current: ${branchName || "none"}`}
           className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
         >
           <GitBranch size={10} />
@@ -150,9 +150,7 @@ export function TerminalHeader({
         )}
 
         {/* Status indicator */}
-        <span
-          className={`text-[10px] font-medium ${STATUS_COLOR[status]}`}
-        >
+        <span className={`text-[10px] font-medium ${STATUS_COLOR[status]}`}>
           {STATUS_LABEL[status]}
         </span>
 

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Check } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { Check } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface BranchInfo {
   name: string;
@@ -63,10 +63,7 @@ export function BranchDropdown({
   // Close on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
@@ -80,9 +77,7 @@ export function BranchDropdown({
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setFocusIndex((prev) =>
-            prev < branches.length - 1 ? prev + 1 : prev,
-          );
+          setFocusIndex((prev) => (prev < branches.length - 1 ? prev + 1 : prev));
           break;
         case "ArrowUp":
           e.preventDefault();
@@ -111,9 +106,7 @@ export function BranchDropdown({
       const isDropdownFocused = dropdownRef.current.contains(activeEl as Node);
       const isBodyFocused = activeEl === document.body;
       const hasModal = Boolean(
-        document.querySelector(
-          '[role="dialog"], [data-modal-open="true"], .modal, .overlay',
-        ),
+        document.querySelector('[role="dialog"], [data-modal-open="true"], .modal, .overlay'),
       );
       if (isDropdownFocused || (isBodyFocused && !hasModal)) {
         handleKeyDown(e);
@@ -163,15 +156,11 @@ export function BranchDropdown({
               onClick={() => onSelect(branch.name)}
               onMouseEnter={() => setFocusIndex(i)}
               className={`flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
-                isFocused
-                  ? "bg-maestro-accent/20"
-                  : "hover:bg-maestro-border/30"
+                isFocused ? "bg-maestro-accent/20" : "hover:bg-maestro-border/30"
               }`}
             >
               <span className="w-4 shrink-0">
-                {isCurrent && (
-                  <Check size={12} className="text-maestro-accent" />
-                )}
+                {isCurrent && <Check size={12} className="text-maestro-accent" />}
               </span>
               <span
                 className={`truncate ${
@@ -183,18 +172,12 @@ export function BranchDropdown({
                 {branch.name}
               </span>
               {branch.is_remote && (
-                <span className="ml-auto text-[9px] text-maestro-muted/60">
-                  remote
-                </span>
+                <span className="ml-auto text-[9px] text-maestro-muted/60">remote</span>
               )}
             </button>
           );
         })}
-        {loading && (
-          <div className="px-3 py-2 text-sm text-maestro-muted">
-            Loading branches...
-          </div>
-        )}
+        {loading && <div className="px-3 py-2 text-sm text-maestro-muted">Loading branches...</div>}
         {!loading && error && (
           <div className="px-3 py-2 text-sm text-maestro-red">
             <div>Failed to load branches</div>
@@ -210,9 +193,7 @@ export function BranchDropdown({
           </div>
         )}
         {!loading && !error && branches.length === 0 && (
-          <div className="px-3 py-2 text-sm text-maestro-muted">
-            No branches found
-          </div>
+          <div className="px-3 py-2 text-sm text-maestro-muted">No branches found</div>
         )}
       </div>
     </div>

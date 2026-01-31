@@ -1,16 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { TopBar } from "./components/shared/TopBar";
-import { BottomBar } from "./components/shared/BottomBar";
-import { Sidebar } from "./components/sidebar/Sidebar";
-import { TerminalGrid, type TerminalGridHandle } from "./components/terminal/TerminalGrid";
-import { SessionPodGrid } from "./components/terminal/SessionPodGrid";
-import { IdleLandingView } from "./components/shared/IdleLandingView";
-import { FloatingAddButton } from "./components/shared/FloatingAddButton";
-import { GitGraphPanel } from "./components/git/GitGraphPanel";
-import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
-import { useSessionStore } from "@/stores/useSessionStore";
-import { useOpenProject } from "@/lib/useOpenProject";
+import { invoke } from "@tauri-apps/api/core";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { killSession } from "@/lib/terminal";
+import { useOpenProject } from "@/lib/useOpenProject";
+import { useSessionStore } from "@/stores/useSessionStore";
+import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
+import { GitGraphPanel } from "./components/git/GitGraphPanel";
+import { BottomBar } from "./components/shared/BottomBar";
+import { FloatingAddButton } from "./components/shared/FloatingAddButton";
+import { IdleLandingView } from "./components/shared/IdleLandingView";
+import { TopBar } from "./components/shared/TopBar";
+import { Sidebar } from "./components/sidebar/Sidebar";
+import { SessionPodGrid } from "./components/terminal/SessionPodGrid";
+import { TerminalGrid, type TerminalGridHandle } from "./components/terminal/TerminalGrid";
 
 const DEFAULT_SESSION_COUNT = 6;
 
@@ -31,6 +32,7 @@ function App() {
   const [gitPanelOpen, setGitPanelOpen] = useState(false);
   const [sessionsLaunched, setSessionsLaunched] = useState(false);
   const [liveSessionCount, setLiveSessionCount] = useState(0);
+  const [currentBranch, setCurrentBranch] = useState<string | undefined>(undefined);
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem("maestro-theme");
     return isValidTheme(stored) ? stored : "dark";
@@ -59,6 +61,26 @@ function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
   const activeTab = tabs.find((tab) => tab.active) ?? null;
+  const activeProjectPath = activeTab?.projectPath;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeProjectPath) {
+      setCurrentBranch(undefined);
+      return () => {};
+    }
+    invoke<string>("git_current_branch", { repoPath: activeProjectPath })
+      .then((branch) => {
+        if (!cancelled) setCurrentBranch(branch);
+      })
+      .catch((err) => {
+        console.error("Failed to load current branch:", err);
+        if (!cancelled) setCurrentBranch(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProjectPath]);
 
   // Derive app state
   const appState: AppState = !activeTab
@@ -100,7 +122,7 @@ function App() {
         <TopBar
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-          branchName={activeTab ? activeTab.name : undefined}
+          branchName={currentBranch}
           repoPath={activeTab ? activeTab.projectPath : undefined}
           onToggleGitPanel={() => setGitPanelOpen((prev) => !prev)}
           gitPanelOpen={gitPanelOpen}
@@ -110,12 +132,8 @@ function App() {
         <div className="flex flex-1 overflow-hidden">
           {/* Main content */}
           <main className="relative flex-1 overflow-hidden bg-maestro-bg">
-            {appState === "no-project" && (
-              <SessionPodGrid sessionCount={DEFAULT_SESSION_COUNT} />
-            )}
-            {appState === "project-idle" && (
-              <IdleLandingView onAdd={handleAddSession} />
-            )}
+            {appState === "no-project" && <SessionPodGrid sessionCount={DEFAULT_SESSION_COUNT} />}
+            {appState === "project-idle" && <IdleLandingView onAdd={handleAddSession} />}
             {appState === "sessions-active" && activeTab && (
               <TerminalGrid
                 ref={termGridRef}
@@ -127,10 +145,7 @@ function App() {
           </main>
 
           {/* Git graph panel (optional right side) */}
-          <GitGraphPanel
-            open={gitPanelOpen}
-            onClose={() => setGitPanelOpen(false)}
-          />
+          <GitGraphPanel open={gitPanelOpen} onClose={() => setGitPanelOpen(false)} />
         </div>
 
         {/* Bottom action bar */}
@@ -143,9 +158,7 @@ function App() {
             onStopAll={async () => {
               // Kill all running sessions via the session store
               const sessions = useSessionStore.getState().sessions;
-              const results = await Promise.allSettled(
-                sessions.map((s) => killSession(s.id)),
-              );
+              const results = await Promise.allSettled(sessions.map((s) => killSession(s.id)));
               for (const result of results) {
                 if (result.status === "rejected") {
                   console.error("Failed to stop session:", result.reason);

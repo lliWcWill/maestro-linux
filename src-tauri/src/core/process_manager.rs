@@ -71,7 +71,8 @@ impl ProcessManager {
     /// leader so `kill_session` can signal the entire process group.
     /// A dedicated OS thread reads PTY output into a bounded 256-slot channel
     /// (~1 MB of 4 KB chunks), and a tokio task drains it into Tauri events
-    /// named `pty-output-{id}`. If the channel fills, output is dropped silently.
+    /// named `pty-output-{id}`. If the channel fills, output is dropped and a
+    /// log message is emitted to make the loss visible.
     pub fn spawn_shell(&self, app_handle: AppHandle, cwd: Option<String>) -> Result<u32, PtyError> {
         let id = self.inner.next_id.fetch_add(1, Ordering::Relaxed);
 

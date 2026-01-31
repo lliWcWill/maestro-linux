@@ -18,19 +18,12 @@ export async function spawnShell(cwd?: string): Promise<number> {
 }
 
 /** Writes raw bytes to the PTY stdin of the given session. */
-export async function writeStdin(
-  sessionId: number,
-  data: string,
-): Promise<void> {
+export async function writeStdin(sessionId: number, data: string): Promise<void> {
   return invoke("write_stdin", { sessionId, data });
 }
 
 /** Notifies the backend PTY of a terminal dimension change (rows x cols). */
-export async function resizePty(
-  sessionId: number,
-  rows: number,
-  cols: number,
-): Promise<void> {
+export async function resizePty(sessionId: number, rows: number, cols: number): Promise<void> {
   return invoke("resize_pty", { sessionId, rows, cols });
 }
 

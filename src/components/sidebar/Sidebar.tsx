@@ -1,32 +1,32 @@
-import { useState, useCallback, useEffect, useRef } from "react";
 import {
-  Settings,
   Activity,
-  GitBranch,
-  FileText,
-  Server,
-  Store,
-  Zap,
-  Sun,
-  Moon,
-  Cpu,
-  Globe,
-  ScrollText,
-  Skull,
+  AlertTriangle,
   Bot,
-  Sparkles,
+  Check,
   ChevronDown,
   ChevronRight,
-  AlertTriangle,
-  RefreshCw,
-  PlusCircle,
-  Eye,
-  Play,
   Circle,
+  Cpu,
+  Eye,
+  FileText,
+  GitBranch,
+  Globe,
+  Moon,
+  Play,
+  PlusCircle,
+  RefreshCw,
+  ScrollText,
+  Server,
+  Settings,
+  Skull,
+  Sparkles,
+  Store,
+  Sun,
   Wrench,
-  Check,
+  Zap,
 } from "lucide-react";
-import { useSessionStore, type BackendSessionStatus } from "@/stores/useSessionStore";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { type AiMode, type BackendSessionStatus, useSessionStore } from "@/stores/useSessionStore";
 
 type SidebarTab = "config" | "processes";
 
@@ -42,6 +42,10 @@ const cardClass =
   "rounded-lg border border-maestro-border/60 bg-maestro-card p-3 shadow-[0_1px_4px_rgb(0_0_0/0.15),0_0_0_1px_rgb(255_255_255/0.03)_inset] transition-shadow hover:shadow-[0_2px_8px_rgb(0_0_0/0.25),0_0_0_1px_rgb(255_255_255/0.05)_inset]";
 
 const divider = <div className="h-px bg-maestro-border/30 my-1" />;
+
+const SIDEBAR_MIN_WIDTH = 180;
+const SIDEBAR_MAX_WIDTH = 320;
+const SIDEBAR_COLLAPSE_THRESHOLD = 60;
 
 const STATUS_DOT_CLASS: Record<BackendSessionStatus, string> = {
   Starting: "bg-maestro-orange",
@@ -70,9 +74,6 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
   const [width, setWidth] = useState(240);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; w: number } | null>(null);
-  const minWidth = 180;
-  const maxWidth = 320;
-  const collapseThreshold = 60;
 
   const handleDragStart = useCallback(
     (e: React.MouseEvent) => {
@@ -84,8 +85,8 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
   );
 
   const clampWidth = useCallback(
-    (value: number) => Math.min(maxWidth, Math.max(minWidth, value)),
-    [maxWidth, minWidth],
+    (value: number) => Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, value)),
+    [],
   );
 
   const handleResizeKeyDown = useCallback(
@@ -108,23 +109,23 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
           next = width + largeStep;
           break;
         case "Home":
-          next = minWidth;
+          next = SIDEBAR_MIN_WIDTH;
           break;
         case "End":
-          next = maxWidth;
+          next = SIDEBAR_MAX_WIDTH;
           break;
         default:
           return;
       }
 
       e.preventDefault();
-      if (next < collapseThreshold) {
+      if (next < SIDEBAR_COLLAPSE_THRESHOLD) {
         onCollapse?.();
         return;
       }
       setWidth(clampWidth(next));
     },
-    [width, minWidth, maxWidth, collapseThreshold, onCollapse, clampWidth],
+    [width, onCollapse, clampWidth],
   );
 
   useEffect(() => {
@@ -133,7 +134,7 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
     const onMove = (e: MouseEvent) => {
       if (!dragStartRef.current) return;
       const raw = dragStartRef.current.w + (e.clientX - dragStartRef.current.x);
-      if (raw < collapseThreshold) {
+      if (raw < SIDEBAR_COLLAPSE_THRESHOLD) {
         setIsDragging(false);
         onCollapse?.();
         return;
@@ -149,18 +150,14 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
-  }, [isDragging, onCollapse]);
+  }, [isDragging, onCollapse, clampWidth]);
 
   return (
     <aside
       style={!collapsed ? { width: `${width}px` } : undefined}
       className={`theme-transition no-select relative flex h-full flex-col border-r border-maestro-border bg-maestro-surface ${
         isDragging ? "" : "transition-all duration-200 ease-out"
-      } ${
-        collapsed
-          ? "w-0 overflow-hidden border-r-0 opacity-0"
-          : "opacity-100"
-      }`}
+      } ${collapsed ? "w-0 overflow-hidden border-r-0 opacity-0" : "opacity-100"}`}
     >
       {/* Tab switcher */}
       <div className="flex shrink-0 border-b border-maestro-border">
@@ -201,11 +198,12 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
 
       {/* Drag handle */}
       {!collapsed && (
+        // biome-ignore lint/a11y/useSemanticElements: Vertical resizer requires interactive div for pointer/keyboard handling.
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-valuemin={minWidth}
-          aria-valuemax={maxWidth}
+          aria-valuemin={SIDEBAR_MIN_WIDTH}
+          aria-valuemax={SIDEBAR_MAX_WIDTH}
           aria-valuenow={Math.round(width)}
           aria-valuetext={`${Math.round(width)} pixels`}
           tabIndex={0}
@@ -242,9 +240,7 @@ function SectionHeader({
     <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-maestro-muted">
       <Icon
         size={13}
-        className={`${iconColor ?? "text-maestro-muted/80"} ${
-          breathe ? "animate-breathe" : ""
-        }`}
+        className={`${iconColor ?? "text-maestro-muted/80"} ${breathe ? "animate-breathe" : ""}`}
       />
       <span className="flex-1">{label}</span>
       {badge}
@@ -305,24 +301,16 @@ function GitRepositorySection() {
       {/* User */}
       <div className="flex items-center gap-2 px-1 py-1">
         <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
-        <span className="text-xs font-semibold text-maestro-text truncate">
-          User
-        </span>
+        <span className="text-xs font-semibold text-maestro-text truncate">User</span>
       </div>
-      <div className="pl-5 text-[11px] text-maestro-muted truncate">
-        user@example.com
-      </div>
+      <div className="pl-5 text-[11px] text-maestro-muted truncate">user@example.com</div>
       {/* Origin */}
       <div className="flex items-center gap-2 px-1 py-1 mt-1">
         <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
         <Check size={10} className="text-maestro-green shrink-0" />
-        <span className="text-xs font-semibold text-maestro-text truncate">
-          origin
-        </span>
+        <span className="text-xs font-semibold text-maestro-text truncate">origin</span>
       </div>
-      <div className="pl-5 text-[11px] text-maestro-muted truncate">
-        github.com/user/project
-      </div>
+      <div className="pl-5 text-[11px] text-maestro-muted truncate">github.com/user/project</div>
     </div>
   );
 }
@@ -383,9 +371,7 @@ function SessionsSection() {
       {expanded && (
         <div className="space-y-0.5">
           {sessions.length === 0 ? (
-            <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
-              No sessions yet
-            </div>
+            <div className="px-2 py-1 text-[11px] text-maestro-muted/60">No sessions yet</div>
           ) : (
             sessions.map((s) => (
               <div
@@ -395,9 +381,7 @@ function SessionsSection() {
                 <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[s.status]}`} />
                 <Bot size={12} className="text-maestro-purple shrink-0" />
                 <span className="flex-1 font-medium">#{s.id}</span>
-                <span className="text-[10px] text-maestro-muted">
-                  {STATUS_LABEL[s.status]}
-                </span>
+                <span className="text-[10px] text-maestro-muted">{STATUS_LABEL[s.status]}</span>
                 <ChevronDown size={12} className="text-maestro-muted" />
               </div>
             ))
@@ -411,37 +395,58 @@ function SessionsSection() {
 /* ── 4. Status ── */
 
 function StatusSection() {
+  const sessions = useSessionStore((s) => s.sessions);
+  const counts = sessions.reduce(
+    (acc, session) => {
+      acc.status[session.status] = (acc.status[session.status] ?? 0) + 1;
+      acc.mode[session.mode] = (acc.mode[session.mode] ?? 0) + 1;
+      return acc;
+    },
+    {
+      status: {
+        Starting: 0,
+        Idle: 0,
+        Working: 0,
+        NeedsInput: 0,
+        Done: 0,
+        Error: 0,
+      } as Record<BackendSessionStatus, number>,
+      mode: {
+        Claude: 0,
+        Gemini: 0,
+        Codex: 0,
+        Plain: 0,
+      } as Record<AiMode, number>,
+    },
+  );
+
   return (
     <div className={cardClass}>
-      <SectionHeader
-        icon={Activity}
-        label="Status"
-        iconColor="text-maestro-accent"
-      />
+      <SectionHeader icon={Activity} label="Status" iconColor="text-maestro-accent" />
       <div className="space-y-0.5">
         {/* Claude */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
           <Bot size={12} className="text-maestro-purple shrink-0" />
           <span className="flex-1">Claude:</span>
-          <span className="font-semibold text-maestro-text">3</span>
+          <span className="font-semibold text-maestro-text">{counts.mode.Claude}</span>
         </div>
         {/* Gemini */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
           <Sparkles size={12} className="text-maestro-purple shrink-0" />
           <span className="flex-1">Gemini:</span>
-          <span className="font-semibold text-maestro-text">1</span>
+          <span className="font-semibold text-maestro-text">{counts.mode.Gemini}</span>
         </div>
         {/* Idle */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
           <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-accent" />
           <span className="flex-1">Idle:</span>
-          <span className="font-semibold text-maestro-text">2</span>
+          <span className="font-semibold text-maestro-text">{counts.status.Idle}</span>
         </div>
         {/* Working */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text">
           <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
           <span className="flex-1">Working:</span>
-          <span className="font-semibold text-maestro-text">1</span>
+          <span className="font-semibold text-maestro-text">{counts.status.Working}</span>
         </div>
       </div>
     </div>
@@ -501,9 +506,7 @@ function MCPServersSection() {
       </div>
 
       {expanded && (
-        <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
-          No MCP servers
-        </div>
+        <div className="px-2 py-1 text-[11px] text-maestro-muted/60">No MCP servers</div>
       )}
     </div>
   );
@@ -529,9 +532,7 @@ function PluginsSection() {
           </div>
         }
       />
-      <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
-        No skills installed
-      </div>
+      <div className="px-2 py-1 text-[11px] text-maestro-muted/60">No skills installed</div>
       <div className="px-2 text-[10px] text-maestro-muted/40">
         Browse marketplace to install plugins
       </div>
@@ -652,25 +653,19 @@ function AgentSessionsSection() {
       />
       <div className="space-y-0.5">
         {sessions.length === 0 ? (
-          <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
-            No active agents
-          </div>
+          <div className="px-2 py-1 text-[11px] text-maestro-muted/60">No active agents</div>
         ) : (
           sessions.map((s) => (
             <div
               key={s.id}
               className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text hover:bg-maestro-border/40"
             >
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[s.status]}`}
-              />
+              <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[s.status]}`} />
               <span className="flex-1 truncate">
                 <span className="font-medium">#{s.id}</span>{" "}
                 <span className="text-maestro-muted">{s.mode}</span>{" "}
                 <span className="text-maestro-muted">-</span>{" "}
-                <span className="text-maestro-muted">
-                  {STATUS_LABEL[s.status]}
-                </span>
+                <span className="text-maestro-muted">{STATUS_LABEL[s.status]}</span>
               </span>
             </div>
           ))
@@ -685,14 +680,8 @@ function AgentSessionsSection() {
 function ProcessTreeSection() {
   return (
     <div className={cardClass}>
-      <SectionHeader
-        icon={Globe}
-        label="Process Tree"
-        iconColor="text-maestro-muted/80"
-      />
-      <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
-        No running processes
-      </div>
+      <SectionHeader icon={Globe} label="Process Tree" iconColor="text-maestro-muted/80" />
+      <div className="px-2 py-1 text-[11px] text-maestro-muted/60">No running processes</div>
     </div>
   );
 }
@@ -712,9 +701,7 @@ function OutputStreamsSection() {
           </button>
         }
       />
-      <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
-        No active streams
-      </div>
+      <div className="px-2 py-1 text-[11px] text-maestro-muted/60">No active streams</div>
     </div>
   );
 }
@@ -736,9 +723,7 @@ function OrphanedProcessesSection() {
       />
       <div className="flex items-center gap-2 px-2 py-1">
         <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
-        <span className="text-[11px] text-maestro-muted/60">
-          No orphaned processes
-        </span>
+        <span className="text-[11px] text-maestro-muted/60">No orphaned processes</span>
       </div>
     </div>
   );

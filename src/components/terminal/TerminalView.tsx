@@ -1,13 +1,13 @@
-import { useEffect, useRef, useCallback } from "react";
-import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { Terminal } from "@xterm/xterm";
+import { useCallback, useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
 
-import { writeStdin, resizePty, killSession, onPtyOutput } from "@/lib/terminal";
-import { TerminalHeader, type SessionStatus, type AIProvider } from "./TerminalHeader";
+import { killSession, onPtyOutput, resizePty, writeStdin } from "@/lib/terminal";
+import { type AiMode, type BackendSessionStatus, useSessionStore } from "@/stores/useSessionStore";
 import { QuickActionPills } from "./QuickActionPills";
-import { useSessionStore, type AiMode, type BackendSessionStatus } from "@/stores/useSessionStore";
+import { type AIProvider, type SessionStatus, TerminalHeader } from "./TerminalHeader";
 
 /**
  * Props for {@link TerminalView}.
@@ -85,14 +85,8 @@ function cellStatusClass(status: SessionStatus): string {
  * ResizeObserver, disposes xterm listeners, unsubscribes the Tauri event listener
  * (even if the listener promise hasn't resolved yet), and destroys the Terminal.
  */
-export function TerminalView({
-  sessionId,
-  status = "idle",
-  onKill,
-}: TerminalViewProps) {
-  const sessionConfig = useSessionStore((s) =>
-    s.sessions.find((sess) => sess.id === sessionId),
-  );
+export function TerminalView({ sessionId, status = "idle", onKill }: TerminalViewProps) {
+  const sessionConfig = useSessionStore((s) => s.sessions.find((sess) => sess.id === sessionId));
   const effectiveStatus = sessionConfig ? mapStatus(sessionConfig.status) : status;
   const effectiveProvider = sessionConfig ? mapAiMode(sessionConfig.mode) : "claude";
   const effectiveBranch = sessionConfig?.branch ?? "Current";

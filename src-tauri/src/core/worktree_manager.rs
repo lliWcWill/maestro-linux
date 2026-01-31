@@ -165,7 +165,13 @@ impl WorktreeManager {
         let hash = repo_hash(repo_path);
         let managed_dir = worktree_base_dir().join(&hash);
 
-        if !managed_dir.exists() {
+        let managed_exists = tokio::fs::try_exists(&managed_dir)
+            .await
+            .map_err(|e| GitError::SpawnError {
+                source: e,
+                command: format!("try_exists {:?}", managed_dir),
+            })?;
+        if !managed_exists {
             return Ok(());
         }
 

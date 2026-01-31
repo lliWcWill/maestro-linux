@@ -20,9 +20,7 @@ export function GitGraphPanel({ open, onClose, commitCount = 0 }: GitGraphPanelP
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-maestro-border px-3">
         <div className="flex items-center gap-2">
           <GitFork size={14} className="text-maestro-muted" />
-          <span className="text-sm font-medium text-maestro-text">
-            Commits
-          </span>
+          <span className="text-sm font-medium text-maestro-text">Commits</span>
           <span className="rounded-full bg-maestro-accent/15 px-1.5 py-px text-[10px] font-medium text-maestro-accent">
             {commitCount}
           </span>
@@ -41,14 +39,8 @@ export function GitGraphPanel({ open, onClose, commitCount = 0 }: GitGraphPanelP
       {/* Empty state */}
       <div className="flex flex-1 items-center justify-center px-4 text-center">
         <div className="flex flex-col items-center gap-3">
-          <GitFork
-            size={32}
-            className="animate-breathe text-maestro-muted/30"
-            strokeWidth={1}
-          />
-          <p className="text-xs text-maestro-muted/60">
-            Open a git repository to view commits
-          </p>
+          <GitFork size={32} className="animate-breathe text-maestro-muted/30" strokeWidth={1} />
+          <p className="text-xs text-maestro-muted/60">Open a git repository to view commits</p>
         </div>
       </div>
     </aside>

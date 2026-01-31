@@ -1,6 +1,6 @@
-import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { create } from "zustand";
 
 /** AI provider variants supported by the backend orchestrator. */
 export type AiMode = "Claude" | "Gemini" | "Codex" | "Plain";
@@ -63,7 +63,6 @@ let listenerCount = 0;
 let pendingInit: Promise<void> | null = null;
 let activeUnlisten: UnlistenFn | null = null;
 
-
 export const useSessionStore = create<SessionState>()((set) => ({
   sessions: [],
   isLoading: false,
@@ -85,18 +84,13 @@ export const useSessionStore = create<SessionState>()((set) => ({
     try {
       if (!activeUnlisten) {
         if (!pendingInit) {
-          pendingInit = listen<SessionStatusPayload>(
-            "session-status-changed",
-            (event) => {
-              set((state) => ({
-                sessions: state.sessions.map((s) =>
-                  s.id === event.payload.session_id
-                    ? { ...s, status: event.payload.status }
-                    : s,
-                ),
-              }));
-            },
-          )
+          pendingInit = listen<SessionStatusPayload>("session-status-changed", (event) => {
+            set((state) => ({
+              sessions: state.sessions.map((s) =>
+                s.id === event.payload.session_id ? { ...s, status: event.payload.status } : s,
+              ),
+            }));
+          })
             .then((unlisten) => {
               activeUnlisten = unlisten;
             })

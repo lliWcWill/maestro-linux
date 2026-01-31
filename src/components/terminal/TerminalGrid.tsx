@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { killSession, spawnShell } from "@/lib/terminal";
 import { TerminalView } from "./TerminalView";
-import { spawnShell, killSession } from "@/lib/terminal";
 
 /** Hard ceiling on concurrent PTY sessions per grid to bound resource usage. */
 const MAX_SESSIONS = 6;
@@ -54,7 +54,10 @@ interface TerminalGridProps {
  * - `addSession` double-checks MAX_SESSIONS inside the setState updater
  *   to guard against race conditions from rapid clicks.
  */
-export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(function TerminalGrid({ projectPath, onSessionCountChange }, ref) {
+export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(function TerminalGrid(
+  { projectPath, onSessionCountChange },
+  ref,
+) {
   const [sessions, setSessions] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const sessionsRef = useRef<number[]>([]);
@@ -109,7 +112,9 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
           if (!cancelled) setError("Failed to restart terminal session");
         });
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [sessions.length, error, projectPath]);
 
   const handleKill = useCallback((sessionId: number) => {
@@ -126,7 +131,7 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
             return prev;
           }
           return [...prev, id];
-        })
+        }),
       )
       .catch(console.error);
   }, [projectPath]);
@@ -174,9 +179,7 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
   }
 
   return (
-    <div
-      className={`grid h-full ${gridClass(sessions.length)} gap-2 bg-maestro-bg p-2`}
-    >
+    <div className={`grid h-full ${gridClass(sessions.length)} gap-2 bg-maestro-bg p-2`}>
       {sessions.map((id) => (
         <TerminalView key={id} sessionId={id} onKill={handleKill} />
       ))}

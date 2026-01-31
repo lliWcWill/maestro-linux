@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { LazyStore } from "@tauri-apps/plugin-store";
+import { create } from "zustand";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
 // --- Types ---
 
@@ -151,9 +151,7 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()(
         const needsActivation = !remaining.some((t) => t.active);
         set({
           tabs: needsActivation
-            ? remaining.map((t, i) =>
-                i === 0 ? { ...t, active: true } : t,
-              )
+            ? remaining.map((t, i) => (i === 0 ? { ...t, active: true } : t))
             : remaining,
         });
       },

@@ -8,12 +8,7 @@ export function SessionPodGrid({ sessionCount = 6 }: SessionPodGridProps) {
   const count = Math.max(1, sessionCount);
   const pods = Array.from({ length: count }, (_, i) => i + 1);
 
-  const gridClass =
-    count <= 1
-      ? "grid-cols-1"
-      : count <= 4
-        ? "grid-cols-2"
-        : "grid-cols-3";
+  const gridClass = count <= 1 ? "grid-cols-1" : count <= 4 ? "grid-cols-2" : "grid-cols-3";
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6">
@@ -30,9 +25,7 @@ export function SessionPodGrid({ sessionCount = 6 }: SessionPodGridProps) {
                 strokeWidth={1.5}
                 className="animate-breathe text-violet-500 drop-shadow-[0_0_6px_rgba(139,92,246,0.6)]"
               />
-              <span className="text-lg font-semibold text-maestro-text">
-                #{n}
-              </span>
+              <span className="text-lg font-semibold text-maestro-text">#{n}</span>
             </div>
           ))}
         </div>

@@ -1,17 +1,17 @@
-import { useMemo, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
-  PanelLeft,
-  GitBranch,
   ChevronDown,
+  GitBranch,
   GitMerge,
-  Settings,
   Minus,
+  PanelLeft,
+  Settings,
   Square,
   X,
 } from "lucide-react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { StatusLegend } from "./StatusLegend";
+import { useMemo, useState } from "react";
 import { BranchDropdown } from "./BranchDropdown";
+import { StatusLegend } from "./StatusLegend";
 
 interface TopBarProps {
   sidebarOpen: boolean;
@@ -33,11 +33,13 @@ export function TopBar({
   const appWindow = useMemo(() => getCurrentWindow(), []);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
 
+  const handleBranchSelect = (branch: string) => {
+    console.info("Selected branch:", branch);
+    setBranchDropdownOpen(false);
+  };
+
   return (
-    <div
-      data-tauri-drag-region
-      className="no-select flex h-10 items-center bg-maestro-bg"
-    >
+    <div data-tauri-drag-region className="no-select flex h-10 items-center bg-maestro-bg">
       {/* Left: collapse toggle (3D button) + branch area */}
       <div className="flex items-center gap-2 px-2">
         <button
@@ -75,7 +77,7 @@ export function TopBar({
               <BranchDropdown
                 repoPath={repoPath}
                 currentBranch={branchName}
-                onSelect={() => setBranchDropdownOpen(false)}
+                onSelect={handleBranchSelect}
                 onClose={() => setBranchDropdownOpen(false)}
               />
             )}

@@ -48,7 +48,9 @@ export function BottomBar({
           className="flex items-center gap-2 rounded-lg bg-maestro-accent px-4 py-1.5 text-xs font-medium text-white shadow-md shadow-black/20 transition-colors hover:bg-maestro-accent/80 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Play size={11} fill="currentColor" />
-          {sessionCount === 0 ? 'Launch Sessions' : `Launch All ${sessionCount} ${sessionCount === 1 ? 'Session' : 'Sessions'}`}
+          {sessionCount === 0
+            ? "Launch Sessions"
+            : `Launch All ${sessionCount} ${sessionCount === 1 ? "Session" : "Sessions"}`}
         </button>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useSessionStore, type BackendSessionStatus } from "@/stores/useSessionStore";
+import { type BackendSessionStatus, useSessionStore } from "@/stores/useSessionStore";
 
 const STATUS_DEFS: {
   key: BackendSessionStatus;
@@ -15,19 +15,31 @@ const STATUS_DEFS: {
 
 export function StatusLegend() {
   const sessions = useSessionStore((s) => s.sessions);
+  const counts = sessions.reduce<Record<BackendSessionStatus, number>>(
+    (acc, session) => {
+      acc[session.status] = (acc[session.status] ?? 0) + 1;
+      return acc;
+    },
+    {
+      Starting: 0,
+      Idle: 0,
+      Working: 0,
+      NeedsInput: 0,
+      Done: 0,
+      Error: 0,
+    },
+  );
 
   return (
     <div className="flex items-center gap-3">
       {STATUS_DEFS.map((s) => {
-        const count = sessions.filter((sess) => sess.status === s.key).length;
+        const count = counts[s.key] ?? 0;
         return (
           <div key={s.key} className="flex items-center gap-1.5">
             <span className={`h-2.5 w-2.5 rounded-full ${s.colorClass}`} />
             <span className="text-[11px] text-maestro-text/70">
               {s.label}
-              {count > 0 && (
-                <span className="ml-0.5 text-maestro-text/50">({count})</span>
-              )}
+              {count > 0 && <span className="ml-0.5 text-maestro-text/50">({count})</span>}
             </span>
           </div>
         );
