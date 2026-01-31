@@ -22,6 +22,7 @@ function gridClass(count: number): string {
 
 export function TerminalGrid() {
   const [sessions, setSessions] = useState<number[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const sessionsRef = useRef<number[]>([]);
 
   // Keep ref in sync so cleanup can read current session IDs
@@ -41,7 +42,12 @@ export function TerminalGrid() {
           killSession(id).catch(console.error);
         }
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) {
+          setError("Failed to start terminal session");
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -55,6 +61,28 @@ export function TerminalGrid() {
   const handleKill = useCallback((sessionId: number) => {
     setSessions((prev) => prev.filter((id) => id !== sessionId));
   }, []);
+
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-maestro-muted">
+        <span className="text-sm text-maestro-red">{error}</span>
+        <button
+          onClick={() => {
+            setError(null);
+            spawnShell()
+              .then((id) => setSessions([id]))
+              .catch((err) => {
+                console.error(err);
+                setError("Failed to start terminal session");
+              });
+          }}
+          className="rounded bg-maestro-border px-3 py-1.5 text-xs text-maestro-text hover:bg-maestro-muted/20"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (sessions.length === 0) {
     return (

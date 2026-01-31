@@ -1,3 +1,6 @@
+#[cfg(not(unix))]
+compile_error!("process_manager requires a Unix platform (Linux/macOS)");
+
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -17,7 +20,7 @@ struct PtySession {
     /// Master PTY handle — used for resize operations.
     master: Mutex<Box<dyn MasterPty + Send>>,
     /// PID of the child process (shell).
-    child_pid: u32,
+    child_pid: i32,
     /// Process group ID for signal delivery. portable-pty calls setsid() on
     /// spawn, so the child becomes a session+group leader (PGID == child PID).
     /// We capture this from master.process_group_leader() for correctness.
@@ -37,6 +40,12 @@ struct Inner {
 #[derive(Clone)]
 pub struct ProcessManager {
     inner: Arc<Inner>,
+}
+
+impl Default for ProcessManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProcessManager {
@@ -65,7 +74,7 @@ impl ProcessManager {
             .map_err(|e| PtyError::spawn_failed(format!("Failed to open PTY: {e}")))?;
 
         // Determine the user's shell
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
         let mut cmd = CommandBuilder::new(&shell);
         cmd.arg("-l"); // Login shell for proper env
 
@@ -80,6 +89,7 @@ impl ProcessManager {
 
         let child_pid = child
             .process_id()
+            .map(|pid| pid as i32)
             .ok_or_else(|| PtyError::spawn_failed("Could not obtain child PID"))?;
 
         // Capture process group ID before moving master into Mutex.
@@ -88,7 +98,7 @@ impl ProcessManager {
         let pgid = pair
             .master
             .process_group_leader()
-            .unwrap_or(child_pid as i32);
+            .unwrap_or(child_pid);
 
         // Get writer from master
         let writer = pair
@@ -106,9 +116,14 @@ impl ProcessManager {
         let shutdown_clone = shutdown.clone();
 
         // Dedicated OS thread for reading PTY output.
-        // Sends data through an mpsc channel to a tokio task that emits Tauri events.
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+        // Sends data through a bounded mpsc channel (~1 MB of 4 KB chunks) to a
+        // tokio task that emits Tauri events.
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<Vec<u8>>(256);
 
+        // Shutdown mechanism: dropping the master/writer FDs closes the PTY
+        // file descriptor, which causes the blocking `reader.read()` call
+        // below to return `Ok(0)` (EOF). This is the primary way the reader
+        // thread terminates — no explicit signal is needed.
         let reader_handle = std::thread::Builder::new()
             .name(format!("pty-reader-{id}"))
             .spawn(move || {
@@ -117,8 +132,10 @@ impl ProcessManager {
                     match reader.read(&mut buf) {
                         Ok(0) => break, // EOF — shell exited
                         Ok(n) => {
-                            if tx.send(buf[..n].to_vec()).is_err() {
-                                break; // Receiver dropped
+                            // blocking_send is used because this is an OS thread, not async.
+                            // If the channel is full or closed, we break out of the loop.
+                            if tx.blocking_send(buf[..n].to_vec()).is_err() {
+                                break; // Channel full or receiver dropped
                             }
                         }
                         Err(e) => {
@@ -145,6 +162,7 @@ impl ProcessManager {
                     data = rx.recv() => {
                         match data {
                             Some(bytes) => {
+                                // TODO(phase-2): stateful UTF-8 decoder for split multi-byte sequences
                                 let text = String::from_utf8_lossy(&bytes).into_owned();
                                 let _ = app.emit(&event_name, text);
                             }
@@ -235,12 +253,16 @@ impl ProcessManager {
             .ok_or_else(|| PtyError::session_not_found(session_id))?
             .1;
 
-        let pid = session.child_pid as i32;
+        let pid = session.child_pid;
         let pgid = session.pgid;
 
         // Send SIGTERM to the process group (negative pgid targets the group)
-        unsafe {
-            libc::kill(-pgid, libc::SIGTERM);
+        let term_result = unsafe { libc::kill(-pgid, libc::SIGTERM) };
+        if term_result != 0 {
+            log::warn!(
+                "Failed to SIGTERM session {session_id} (pgid={pgid}): {}",
+                std::io::Error::last_os_error()
+            );
         }
 
         // Wait up to 3 seconds for the lead process to exit
@@ -257,8 +279,12 @@ impl ProcessManager {
 
         if exited.is_err() {
             // Still alive after grace period — SIGKILL the process group
-            unsafe {
-                libc::kill(-pgid, libc::SIGKILL);
+            let kill_result = unsafe { libc::kill(-pgid, libc::SIGKILL) };
+            if kill_result != 0 {
+                log::warn!(
+                    "Failed to SIGKILL session {session_id} (pgid={pgid}): {}",
+                    std::io::Error::last_os_error()
+                );
             }
             log::warn!("Session {session_id} (pid={pid}, pgid={pgid}) required SIGKILL");
         }
@@ -275,6 +301,7 @@ impl ProcessManager {
         let reader_handle = session
             .reader_handle
             .lock()
+            .map_err(|e| log::warn!("Reader handle lock poisoned during cleanup: {e}"))
             .ok()
             .and_then(|mut h| h.take());
 

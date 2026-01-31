@@ -18,7 +18,13 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
   const fitAddonRef = useRef<FitAddon | null>(null);
 
   const handleKill = useCallback(() => {
-    killSession(sessionId).then(() => onKill(sessionId)).catch(console.error);
+    killSession(sessionId)
+      .then(() => onKill(sessionId))
+      .catch((err) => {
+        console.error("Failed to kill session:", err);
+        // Force remove from UI even if backend kill failed
+        onKill(sessionId);
+      });
   }, [sessionId, onKill]);
 
   useEffect(() => {
@@ -66,7 +72,11 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
 
     // Initial fit
     requestAnimationFrame(() => {
-      fitAddon.fit();
+      try {
+        fitAddon.fit();
+      } catch {
+        // Container may not be sized yet
+      }
     });
 
     // Forward keystrokes to PTY
@@ -89,20 +99,30 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
         term.write(data);
       }
     });
-    listenerReady.then((fn) => {
-      if (disposed) {
-        // Component already unmounted — clean up immediately
-        fn();
-      } else {
-        unlisten = fn;
-      }
-    });
+    listenerReady
+      .then((fn) => {
+        if (disposed) {
+          // Component already unmounted — clean up immediately
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch((err) => {
+        if (!disposed) {
+          console.error("PTY listener failed:", err);
+        }
+      });
 
     // ResizeObserver for container fit
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
         if (!disposed) {
-          fitAddon.fit();
+          try {
+            fitAddon.fit();
+          } catch {
+            // Container may have zero dimensions during layout transitions
+          }
         }
       });
     });
@@ -135,6 +155,7 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
           onClick={handleKill}
           className="rounded p-0.5 text-maestro-muted hover:bg-maestro-border hover:text-maestro-text"
           title="Kill session"
+          aria-label={`Kill session ${sessionId}`}
         >
           <X size={12} />
         </button>
