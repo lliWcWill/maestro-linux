@@ -1,34 +1,39 @@
 import { FolderOpen, Play, Square } from "lucide-react";
 
 interface BottomBarProps {
-  hasActiveProject: boolean;
+  sessionsActive: boolean;
   sessionCount: number;
   onSelectDirectory: () => void;
-  onLaunchAll?: () => void;
-  onStopAll?: () => void;
+  onLaunchAll: () => void;
+  onStopAll: () => void;
 }
 
 export function BottomBar({
-  hasActiveProject,
+  sessionsActive,
   sessionCount,
   onSelectDirectory,
   onLaunchAll,
   onStopAll,
 }: BottomBarProps) {
   return (
-    <div className="theme-transition no-select flex h-11 items-center justify-center gap-3 border-t border-maestro-border bg-maestro-surface px-4">
+    <div className="no-select flex h-11 items-center justify-center gap-3 px-4">
       <button
-        onClick={onSelectDirectory}
-        className="flex items-center gap-2 rounded-lg border border-maestro-border bg-maestro-card px-4 py-1.5 text-xs font-medium text-maestro-text transition-colors hover:bg-maestro-border/50"
+        onClick={sessionsActive ? undefined : onSelectDirectory}
+        disabled={sessionsActive}
+        className={`flex items-center gap-2 rounded-lg border border-maestro-border bg-maestro-card px-4 py-1.5 text-xs font-medium shadow-md shadow-black/20 transition-colors ${
+          sessionsActive
+            ? "cursor-not-allowed text-maestro-muted/50 opacity-50"
+            : "text-maestro-text hover:bg-maestro-border/50"
+        }`}
       >
         <FolderOpen size={13} />
         Select Directory
       </button>
 
-      {hasActiveProject ? (
+      {sessionsActive ? (
         <button
           onClick={onStopAll}
-          className="flex items-center gap-2 rounded-lg bg-maestro-red/90 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-maestro-red"
+          className="flex items-center gap-2 rounded-lg bg-maestro-red/90 px-4 py-1.5 text-xs font-medium text-white shadow-md shadow-black/20 transition-colors hover:bg-maestro-red"
         >
           <Square size={11} />
           Stop All
@@ -36,10 +41,10 @@ export function BottomBar({
       ) : (
         <button
           onClick={onLaunchAll}
-          className="flex items-center gap-2 rounded-lg bg-maestro-accent px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-maestro-accent/80"
+          className="flex items-center gap-2 rounded-lg bg-maestro-accent px-4 py-1.5 text-xs font-medium text-white shadow-md shadow-black/20 transition-colors hover:bg-maestro-accent/80"
         >
           <Play size={11} fill="currentColor" />
-          Launch {sessionCount} All Sessions
+          Launch All {sessionCount} Sessions
         </button>
       )}
     </div>

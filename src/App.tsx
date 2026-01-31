@@ -1,20 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { TopBar } from "./components/shared/TopBar";
 import { BottomBar } from "./components/shared/BottomBar";
 import { Sidebar } from "./components/sidebar/Sidebar";
-import { TerminalGrid } from "./components/terminal/TerminalGrid";
+import { TerminalGrid, type TerminalGridHandle } from "./components/terminal/TerminalGrid";
 import { SessionPodGrid } from "./components/terminal/SessionPodGrid";
+import { IdleLandingView } from "./components/shared/IdleLandingView";
+import { FloatingAddButton } from "./components/shared/FloatingAddButton";
+import { GitGraphPanel } from "./components/git/GitGraphPanel";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import { useOpenProject } from "@/lib/useOpenProject";
 
+const DEFAULT_SESSION_COUNT = 6;
+
 type Theme = "dark" | "light";
+type AppState = "no-project" | "project-idle" | "sessions-active";
+
+function isValidTheme(value: string | null): value is Theme {
+  return value === "dark" || value === "light";
+}
 
 function App() {
   const tabs = useWorkspaceStore((s) => s.tabs);
   const handleOpenProject = useOpenProject();
+  const termGridRef = useRef<TerminalGridHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [gitPanelOpen, setGitPanelOpen] = useState(false);
+  const [sessionsLaunched, setSessionsLaunched] = useState(false);
+  const [liveSessionCount, setLiveSessionCount] = useState(0);
   const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem("maestro-theme") as Theme) ?? "dark";
+    const stored = localStorage.getItem("maestro-theme");
+    return isValidTheme(stored) ? stored : "dark";
   });
 
   useEffect(() => {
@@ -25,11 +40,35 @@ function App() {
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
   const activeTab = tabs.find((tab) => tab.active) ?? null;
 
+  // Derive app state
+  const appState: AppState = !activeTab
+    ? "no-project"
+    : !sessionsLaunched
+      ? "project-idle"
+      : "sessions-active";
+
+  // Handler to launch a session (transitions project-idle → sessions-active)
+  const handleAddSession = () => {
+    setSessionsLaunched(true);
+  };
+
+  const handleSessionCountChange = useCallback((count: number) => {
+    setLiveSessionCount(count);
+  }, []);
+
+  // Reset sessions-launched when switching away from a project
+  useEffect(() => {
+    if (!activeTab) {
+      setSessionsLaunched(false);
+    }
+  }, [activeTab]);
+
   return (
     <div className="flex h-screen w-screen bg-maestro-bg">
       {/* Sidebar — full height, left edge */}
       <Sidebar
         collapsed={!sidebarOpen}
+        onCollapse={() => setSidebarOpen(false)}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -41,29 +80,53 @@ function App() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           branchName={activeTab ? activeTab.name : undefined}
+          onToggleGitPanel={() => setGitPanelOpen((prev) => !prev)}
+          gitPanelOpen={gitPanelOpen}
         />
 
-        {/* Main content — always dark */}
-        <main className="content-dark flex-1 overflow-hidden bg-maestro-bg">
-          {activeTab ? (
-            <TerminalGrid
-              key={activeTab.id}
-              projectPath={activeTab.projectPath}
-            />
-          ) : (
-            <SessionPodGrid sessionCount={4} />
-          )}
-        </main>
+        {/* Content area (main + optional git panel) */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Main content */}
+          <main className="relative flex-1 overflow-hidden bg-maestro-bg">
+            {appState === "no-project" && (
+              <SessionPodGrid sessionCount={DEFAULT_SESSION_COUNT} />
+            )}
+            {appState === "project-idle" && (
+              <IdleLandingView onAdd={handleAddSession} />
+            )}
+            {appState === "sessions-active" && (
+              <TerminalGrid
+                ref={termGridRef}
+                key={activeTab!.id}
+                projectPath={activeTab!.projectPath}
+                onSessionCountChange={handleSessionCountChange}
+              />
+            )}
+          </main>
+
+          {/* Git graph panel (optional right side) */}
+          <GitGraphPanel
+            open={gitPanelOpen}
+            onClose={() => setGitPanelOpen(false)}
+          />
+        </div>
 
         {/* Bottom action bar */}
-        <div className="content-dark">
+        <div className="bg-maestro-bg">
           <BottomBar
-            hasActiveProject={!!activeTab}
-            sessionCount={4}
+            sessionsActive={sessionsLaunched}
+            sessionCount={DEFAULT_SESSION_COUNT}
             onSelectDirectory={handleOpenProject}
+            onLaunchAll={handleAddSession}
+            onStopAll={() => setSessionsLaunched(false)}
           />
         </div>
       </div>
+
+      {/* Floating add session button (only when sessions active and below max) */}
+      {appState === "sessions-active" && liveSessionCount < DEFAULT_SESSION_COUNT && (
+        <FloatingAddButton onClick={() => termGridRef.current?.addSession()} />
+      )}
     </div>
   );
 }

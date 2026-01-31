@@ -1,39 +1,39 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { TerminalView } from "./TerminalView";
 import { spawnShell, killSession } from "@/lib/terminal";
 
+const MAX_SESSIONS = 6;
+
 function gridClass(count: number): string {
-  switch (count) {
-    case 1:
-      return "grid-cols-1 grid-rows-1";
-    case 2:
-      return "grid-cols-2 grid-rows-1";
-    case 3:
-      return "grid-cols-3 grid-rows-1";
-    case 4:
-      return "grid-cols-2 grid-rows-2";
-    case 5:
-    case 6:
-      return "grid-cols-3 grid-rows-2";
-    default:
-      return "grid-cols-3 grid-rows-2";
-  }
+  if (count <= 1) return "grid-cols-1 grid-rows-1";
+  if (count === 2) return "grid-cols-2 grid-rows-1";
+  if (count === 3) return "grid-cols-3 grid-rows-1";
+  if (count === 4) return "grid-cols-2 grid-rows-2";
+  if (count <= 6) return "grid-cols-3 grid-rows-2";
+  if (count <= 9) return "grid-cols-3 grid-rows-3";
+  if (count <= 12) return "grid-cols-4 grid-rows-3";
+  return "grid-cols-4";
+}
+
+export interface TerminalGridHandle {
+  addSession: () => void;
 }
 
 interface TerminalGridProps {
   projectPath?: string;
+  onSessionCountChange?: (count: number) => void;
 }
 
-export function TerminalGrid({ projectPath }: TerminalGridProps) {
+export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(function TerminalGrid({ projectPath, onSessionCountChange }, ref) {
   const [sessions, setSessions] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const sessionsRef = useRef<number[]>([]);
   const mounted = useRef(false);
 
-  // Keep ref in sync so cleanup can read current session IDs
   useEffect(() => {
     sessionsRef.current = sessions;
-  }, [sessions]);
+    onSessionCountChange?.(sessions.length);
+  }, [sessions, onSessionCountChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +44,6 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
           setSessions([id]);
           mounted.current = true;
         } else {
-          // Component unmounted before spawn resolved — kill the orphan
           killSession(id).catch(console.error);
         }
       })
@@ -58,14 +57,13 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
     return () => {
       cancelled = true;
       mounted.current = false;
-      // Kill all active sessions on unmount to prevent orphaned PTYs
       for (const id of sessionsRef.current) {
         killSession(id).catch(console.error);
       }
     };
   }, []);
 
-  // Auto-respawn a shell when all sessions are closed (not initial mount, not error)
+  // Auto-respawn when all sessions close (not initial mount, not error)
   useEffect(() => {
     if (sessions.length === 0 && mounted.current && !error) {
       spawnShell(projectPath)
@@ -80,6 +78,15 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
   const handleKill = useCallback((sessionId: number) => {
     setSessions((prev) => prev.filter((id) => id !== sessionId));
   }, []);
+
+  const addSession = useCallback(() => {
+    if (sessions.length >= MAX_SESSIONS) return;
+    spawnShell(projectPath)
+      .then((id) => setSessions((prev) => [...prev, id]))
+      .catch(console.error);
+  }, [sessions.length, projectPath]);
+
+  useImperativeHandle(ref, () => ({ addSession }), [addSession]);
 
   if (error) {
     return (
@@ -113,11 +120,11 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
 
   return (
     <div
-      className={`grid h-full ${gridClass(sessions.length)} gap-px bg-maestro-border p-px`}
+      className={`grid h-full ${gridClass(sessions.length)} gap-2 bg-maestro-bg p-2`}
     >
       {sessions.map((id) => (
         <TerminalView key={id} sessionId={id} onKill={handleKill} />
       ))}
     </div>
   );
-}
+});

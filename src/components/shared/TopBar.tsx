@@ -1,8 +1,9 @@
+import { useMemo, useState } from "react";
 import {
   PanelLeft,
   GitBranch,
   ChevronDown,
-  GitFork,
+  GitMerge,
   Settings,
   Minus,
   Square,
@@ -10,59 +11,76 @@ import {
 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StatusLegend } from "./StatusLegend";
+import { BranchDropdown } from "./BranchDropdown";
 
 interface TopBarProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   branchName?: string;
+  onToggleGitPanel?: () => void;
+  gitPanelOpen?: boolean;
 }
 
 export function TopBar({
   sidebarOpen,
   onToggleSidebar,
   branchName,
+  onToggleGitPanel,
+  gitPanelOpen,
 }: TopBarProps) {
-  const appWindow = getCurrentWindow();
+  const appWindow = useMemo(() => getCurrentWindow(), []);
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
 
   return (
     <div
       data-tauri-drag-region
-      className="theme-transition no-select flex h-10 items-center border-b border-maestro-border bg-maestro-surface"
+      className="no-select flex h-10 items-center bg-maestro-bg"
     >
-      {/* Left: collapse toggle + branch */}
-      <div className="flex items-center gap-1 px-2">
+      {/* Left: collapse toggle (3D button) + branch area */}
+      <div className="flex items-center gap-2 px-2">
         <button
           type="button"
           onClick={onToggleSidebar}
-          className={`rounded p-1.5 transition-colors ${
+          className={`rounded-md border px-1.5 py-1 shadow-sm transition-all active:translate-y-px active:shadow-none ${
             sidebarOpen
-              ? "text-maestro-accent hover:bg-maestro-accent/10"
-              : "text-maestro-muted hover:bg-maestro-border hover:text-maestro-text"
+              ? "border-maestro-accent/30 bg-maestro-accent/10 text-maestro-accent hover:bg-maestro-accent/15"
+              : "border-maestro-border bg-maestro-card text-maestro-muted hover:bg-maestro-surface hover:text-maestro-text hover:shadow"
           }`}
           aria-label="Toggle sidebar"
         >
           <PanelLeft size={15} />
         </button>
 
+        {/* Branch selector — wide area, embedded text with dropdown */}
         {branchName && (
-          <>
-            <div className="mx-1.5 h-4 w-px bg-maestro-border" />
+          <div className="relative">
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-maestro-text transition-colors hover:bg-maestro-card"
+              onClick={() => setBranchDropdownOpen((p) => !p)}
+              className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors hover:bg-maestro-card/50"
             >
               <GitBranch size={13} className="text-maestro-muted" />
-              <span className="font-medium">{branchName}</span>
+              <span className="max-w-[200px] truncate text-xs font-medium text-maestro-text">
+                {branchName}
+              </span>
               <ChevronDown size={11} className="text-maestro-muted" />
             </button>
-          </>
+
+            {branchDropdownOpen && (
+              <BranchDropdown
+                currentBranch={branchName}
+                onSelect={() => setBranchDropdownOpen(false)}
+                onClose={() => setBranchDropdownOpen(false)}
+              />
+            )}
+          </div>
         )}
       </div>
 
       {/* Center: drag region */}
       <div data-tauri-drag-region className="flex-1" />
 
-      {/* Right: status legend */}
+      {/* Right: status legend (embedded text, no button wrappers) */}
       <div className="mr-3">
         <StatusLegend />
       </div>
@@ -72,46 +90,51 @@ export function TopBar({
         <button
           type="button"
           className="rounded p-1.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
-          aria-label="Git graph"
-          title="Git Graph"
-        >
-          <GitFork size={14} />
-        </button>
-        <button
-          type="button"
-          className="rounded p-1.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
           aria-label="Settings"
           title="Settings"
         >
           <Settings size={14} />
         </button>
+        <button
+          type="button"
+          onClick={onToggleGitPanel}
+          className={`rounded p-1.5 transition-colors ${
+            gitPanelOpen
+              ? "text-maestro-accent hover:bg-maestro-accent/10"
+              : "text-maestro-muted hover:bg-maestro-card hover:text-maestro-text"
+          }`}
+          aria-label="Git graph"
+          title="Git Graph"
+        >
+          <GitMerge size={14} />
+        </button>
       </div>
 
-      {/* Window controls */}
+      {/* Window controls (scaled down ~15%) */}
       <div className="flex items-center border-l border-maestro-border">
         <button
           type="button"
           onClick={() => appWindow.minimize()}
-          className="flex h-10 w-11 items-center justify-center text-maestro-muted transition-colors hover:bg-maestro-muted/10 hover:text-maestro-text"
+          className="flex h-8 w-9 items-center justify-center text-maestro-muted transition-colors hover:bg-maestro-muted/10 hover:text-maestro-text"
           aria-label="Minimize"
         >
-          <Minus size={14} />
+          <Minus size={12} />
         </button>
         <button
           type="button"
           onClick={() => appWindow.toggleMaximize()}
-          className="flex h-10 w-11 items-center justify-center text-maestro-muted transition-colors hover:bg-maestro-muted/10 hover:text-maestro-text"
+          className="flex h-8 w-9 items-center justify-center text-maestro-muted transition-colors hover:bg-maestro-muted/10 hover:text-maestro-text"
           aria-label="Maximize"
         >
-          <Square size={12} />
+          <Square size={10} />
         </button>
         <button
           type="button"
           onClick={() => appWindow.close()}
-          className="flex h-10 w-11 items-center justify-center text-maestro-muted transition-colors hover:bg-maestro-red/80 hover:text-white"
+          className="flex h-8 w-9 items-center justify-center text-maestro-muted transition-colors hover:bg-maestro-red/80 hover:text-white"
           aria-label="Close"
         >
-          <X size={14} />
+          <X size={12} />
         </button>
       </div>
     </div>

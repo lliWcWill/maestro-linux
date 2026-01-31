@@ -1,16 +1,17 @@
-import { Bot } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
 
 interface SessionPodGridProps {
   sessionCount?: number;
 }
 
-export function SessionPodGrid({ sessionCount = 4 }: SessionPodGridProps) {
-  const pods = Array.from({ length: sessionCount }, (_, i) => i + 1);
+export function SessionPodGrid({ sessionCount = 6 }: SessionPodGridProps) {
+  const count = Math.max(1, sessionCount);
+  const pods = Array.from({ length: count }, (_, i) => i + 1);
 
   const gridClass =
-    sessionCount <= 2
+    count <= 2
       ? "grid-cols-2"
-      : sessionCount <= 4
+      : count <= 4
         ? "grid-cols-2"
         : "grid-cols-3";
 
@@ -24,9 +25,10 @@ export function SessionPodGrid({ sessionCount = 4 }: SessionPodGridProps) {
               key={n}
               className="group flex w-24 flex-col items-center gap-2 rounded-xl border border-maestro-border bg-maestro-card p-5 shadow-[0_2px_8px_rgb(0_0_0/0.2)] transition-all hover:border-maestro-muted/40 hover:shadow-[0_4px_16px_rgb(0_0_0/0.3)]"
             >
-              <Bot
-                size={20}
-                className="animate-breathe text-maestro-purple/80"
+              <BrainCircuit
+                size={28}
+                strokeWidth={1.5}
+                className="animate-breathe text-violet-500 drop-shadow-[0_0_6px_rgba(139,92,246,0.6)]"
               />
               <span className="text-lg font-semibold text-maestro-text">
                 #{n}

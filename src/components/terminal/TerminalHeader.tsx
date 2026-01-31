@@ -1,0 +1,169 @@
+import {
+  BrainCircuit,
+  Sparkles,
+  ChevronDown,
+  GitBranch,
+  GitCompareArrows,
+  CheckCircle,
+  Settings,
+  X,
+} from "lucide-react";
+
+export type SessionStatus =
+  | "idle"
+  | "starting"
+  | "working"
+  | "needs-input"
+  | "done"
+  | "error";
+
+export type AIProvider = "claude" | "gemini";
+
+interface TerminalHeaderProps {
+  sessionId: number;
+  provider?: AIProvider;
+  status?: SessionStatus;
+  mcpCount?: number;
+  activeCount?: number;
+  statusMessage?: string;
+  branchName?: string;
+  showLaunch?: boolean;
+  onKill: (sessionId: number) => void;
+  onLaunch?: () => void;
+}
+
+const STATUS_COLOR: Record<SessionStatus, string> = {
+  idle: "text-maestro-accent",
+  starting: "text-maestro-orange",
+  working: "text-maestro-green",
+  "needs-input": "text-maestro-yellow",
+  done: "text-maestro-accent",
+  error: "text-maestro-red",
+};
+
+const STATUS_LABEL: Record<SessionStatus, string> = {
+  idle: "Idle",
+  starting: "Starting...",
+  working: "Working",
+  "needs-input": "Needs Input",
+  done: "Done",
+  error: "Error",
+};
+
+export function TerminalHeader({
+  sessionId,
+  provider = "claude",
+  status = "idle",
+  mcpCount = 1,
+  activeCount = 0,
+  statusMessage,
+  branchName = "Current",
+  showLaunch = false,
+  onKill,
+  onLaunch,
+}: TerminalHeaderProps) {
+  const ProviderIcon = provider === "claude" ? BrainCircuit : Sparkles;
+  const providerLabel =
+    provider === "claude" ? "Claude Code" : "Gemini CLI";
+
+  return (
+    <div className="no-select flex h-7 shrink-0 items-center gap-1.5 border-b border-maestro-border bg-maestro-surface px-2">
+      {/* Left cluster */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {/* AI provider icon + dropdown */}
+        <button className="flex shrink-0 items-center gap-0.5 text-maestro-muted hover:text-maestro-text">
+          <ProviderIcon size={18} strokeWidth={1.5} className="text-violet-500 drop-shadow-[0_0_4px_rgba(139,92,246,0.5)]" />
+          <ChevronDown size={9} className="text-maestro-muted/60" />
+        </button>
+
+        {/* Session label */}
+        <span className="shrink-0 text-[11px] font-medium text-maestro-text">
+          {providerLabel} #{sessionId}
+        </span>
+
+        {/* MCP badge */}
+        <span className="shrink-0 rounded-full bg-maestro-accent/15 px-1.5 py-px text-[9px] font-medium text-maestro-accent">
+          {mcpCount} MCP
+        </span>
+
+        {/* Terminal count badge */}
+        <span className="shrink-0 rounded-full bg-maestro-muted/10 px-1.5 py-px text-[9px] font-medium text-maestro-muted">
+          1
+        </span>
+
+        {/* Blue checkmark (verified/ready) */}
+        <CheckCircle size={11} className="shrink-0 text-maestro-accent" />
+
+        {/* Active count */}
+        <span
+          className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium ${
+            activeCount > 0
+              ? "bg-maestro-orange/15 text-maestro-orange"
+              : "bg-maestro-muted/10 text-maestro-muted"
+          }`}
+        >
+          {activeCount} Active
+        </span>
+
+        {/* Git arrows + change count */}
+        <span className="flex shrink-0 items-center gap-0.5 text-maestro-muted">
+          <GitCompareArrows size={11} />
+          <span className="text-[9px]">0</span>
+        </span>
+
+        {/* Truncated status message */}
+        {statusMessage && (
+          <span className="min-w-0 truncate text-[10px] text-maestro-muted">
+            {statusMessage}
+          </span>
+        )}
+      </div>
+
+      {/* Right cluster */}
+      <div className="flex shrink-0 items-center gap-1">
+        {/* Branch selector */}
+        <button className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text">
+          <GitBranch size={10} />
+          <span className="max-w-[60px] truncate">{branchName}</span>
+          <ChevronDown size={9} />
+        </button>
+
+        {/* Launch button (pre-launch only) */}
+        {showLaunch && (
+          <button
+            onClick={onLaunch}
+            className="rounded bg-maestro-green px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-maestro-green/80"
+          >
+            Launch
+          </button>
+        )}
+
+        {/* Status indicator */}
+        <span
+          className={`text-[10px] font-medium ${STATUS_COLOR[status]}`}
+        >
+          {STATUS_LABEL[status]}
+        </span>
+
+        {/* Per-session settings gear */}
+        <button
+          className="rounded p-0.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
+          title="Session settings"
+          aria-label="Session settings"
+        >
+          <Settings size={11} />
+        </button>
+
+        {/* Close button */}
+        <button
+          onClick={() => onKill(sessionId)}
+          className="rounded p-0.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-red"
+          title="Kill session"
+          aria-label={`Kill session ${sessionId}`}
+        >
+          <X size={11} />
+        </button>
+      </div>
+    </div>
+  );
+}

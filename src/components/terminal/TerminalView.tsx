@@ -1,31 +1,57 @@
 import { useEffect, useRef, useCallback } from "react";
-import { X } from "lucide-react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 
 import { writeStdin, resizePty, killSession, onPtyOutput } from "@/lib/terminal";
+import { TerminalHeader, type SessionStatus } from "./TerminalHeader";
+import { QuickActionPills } from "./QuickActionPills";
 
 interface TerminalViewProps {
   sessionId: number;
+  status?: SessionStatus;
   onKill: (sessionId: number) => void;
 }
 
-export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
+/** Map session status to CSS class for border/glow */
+function cellStatusClass(status: SessionStatus): string {
+  switch (status) {
+    case "starting":
+      return "terminal-cell-starting";
+    case "working":
+      return "terminal-cell-working";
+    case "needs-input":
+      return "terminal-cell-needs-input";
+    case "done":
+      return "terminal-cell-done";
+    case "error":
+      return "terminal-cell-error";
+    default:
+      return "terminal-cell-idle";
+  }
+}
+
+export function TerminalView({
+  sessionId,
+  status = "idle",
+  onKill,
+}: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
 
-  const handleKill = useCallback(() => {
-    killSession(sessionId)
-      .then(() => onKill(sessionId))
-      .catch((err) => {
-        console.error("Failed to kill session:", err);
-        // Force remove from UI even if backend kill failed
-        onKill(sessionId);
-      });
-  }, [sessionId, onKill]);
+  const handleKill = useCallback(
+    (id: number) => {
+      killSession(id)
+        .then(() => onKill(id))
+        .catch((err) => {
+          console.error("Failed to kill session:", err);
+          onKill(id);
+        });
+    },
+    [onKill],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -70,7 +96,6 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Initial fit
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
@@ -79,19 +104,14 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
       }
     });
 
-    // Forward keystrokes to PTY
     const dataDisposable = term.onData((data) => {
       writeStdin(sessionId, data).catch(console.error);
     });
 
-    // Report terminal resize to PTY
     const resizeDisposable = term.onResize(({ rows, cols }) => {
       resizePty(sessionId, rows, cols).catch(console.error);
     });
 
-    // Listen for PTY output events from Tauri backend.
-    // Track disposal to guard against writes after cleanup and handle
-    // the race where cleanup runs before the listen promise resolves.
     let disposed = false;
     let unlisten: (() => void) | null = null;
     const listenerReady = onPtyOutput(sessionId, (data) => {
@@ -102,7 +122,6 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
     listenerReady
       .then((fn) => {
         if (disposed) {
-          // Component already unmounted — clean up immediately
           fn();
         } else {
           unlisten = fn;
@@ -114,7 +133,6 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
         }
       });
 
-    // ResizeObserver for container fit
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
         if (!disposed) {
@@ -141,28 +159,21 @@ export function TerminalView({ sessionId, onKill }: TerminalViewProps) {
   }, [sessionId]);
 
   return (
-    <div className="flex flex-col bg-maestro-bg h-full">
-      {/* Session header */}
-      <div className="no-select flex h-7 shrink-0 items-center justify-between border-b border-maestro-border bg-maestro-surface px-2">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="h-2 w-2 rounded-full bg-maestro-green" />
-          <span className="rounded bg-maestro-border px-1.5 py-0.5 text-[10px] font-medium text-maestro-text">
-            Shell
-          </span>
-          <span className="text-maestro-muted text-[10px]">#{sessionId}</span>
-        </div>
-        <button
-          onClick={handleKill}
-          className="rounded p-0.5 text-maestro-muted hover:bg-maestro-border hover:text-maestro-text"
-          title="Kill session"
-          aria-label={`Kill session ${sessionId}`}
-        >
-          <X size={12} />
-        </button>
-      </div>
+    <div
+      className={`content-dark terminal-cell flex h-full flex-col bg-maestro-bg ${cellStatusClass(status)}`}
+    >
+      {/* Rich header bar */}
+      <TerminalHeader
+        sessionId={sessionId}
+        status={status}
+        onKill={handleKill}
+      />
 
       {/* xterm.js container */}
       <div ref={containerRef} className="flex-1 overflow-hidden" />
+
+      {/* Quick action pills */}
+      <QuickActionPills />
     </div>
   );
 }

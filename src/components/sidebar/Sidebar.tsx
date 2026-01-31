@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Settings,
   Activity,
@@ -31,6 +31,7 @@ type SidebarTab = "config" | "processes";
 
 interface SidebarProps {
   collapsed?: boolean;
+  onCollapse?: () => void;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
 }
@@ -45,15 +46,54 @@ const divider = <div className="h-px bg-maestro-border/30 my-1" />;
 /*  SIDEBAR ROOT                                                     */
 /* ================================================================ */
 
-export function Sidebar({ collapsed, theme, onToggleTheme }: SidebarProps) {
+export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("config");
+  const [width, setWidth] = useState(240);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; w: number } | null>(null);
+
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+      dragStartRef.current = { x: e.clientX, w: width };
+    },
+    [width],
+  );
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const raw = dragStartRef.current.w + (e.clientX - dragStartRef.current.x);
+      if (raw < 60) {
+        setIsDragging(false);
+        onCollapse?.();
+        return;
+      }
+      setWidth(Math.min(320, Math.max(180, raw)));
+    };
+
+    const onUp = () => setIsDragging(false);
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging, onCollapse]);
 
   return (
     <aside
-      className={`theme-transition no-select flex h-full flex-col border-r border-maestro-border bg-maestro-surface transition-all duration-200 ease-out ${
+      style={!collapsed ? { width: `${width}px` } : undefined}
+      className={`theme-transition no-select relative flex h-full flex-col border-r border-maestro-border bg-maestro-surface ${
+        isDragging ? "" : "transition-all duration-200 ease-out"
+      } ${
         collapsed
           ? "w-0 overflow-hidden border-r-0 opacity-0"
-          : "w-60 opacity-100"
+          : "opacity-100"
       }`}
     >
       {/* Tab switcher */}
@@ -90,6 +130,14 @@ export function Sidebar({ collapsed, theme, onToggleTheme }: SidebarProps) {
           <ProcessesTab />
         )}
       </div>
+
+      {/* Drag handle */}
+      {!collapsed && (
+        <div
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-maestro-accent/30 active:bg-maestro-accent/40"
+          onMouseDown={handleDragStart}
+        />
+      )}
     </aside>
   );
 }
@@ -181,11 +229,11 @@ function GitRepositorySection() {
       <div className="flex items-center gap-2 px-1 py-1">
         <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
         <span className="text-xs font-semibold text-maestro-text truncate">
-          Player 2
+          User
         </span>
       </div>
       <div className="pl-5 text-[11px] text-maestro-muted truncate">
-        domain112@yahoo.com
+        user@example.com
       </div>
       {/* Origin */}
       <div className="flex items-center gap-2 px-1 py-1 mt-1">
