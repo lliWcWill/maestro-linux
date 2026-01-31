@@ -4,6 +4,14 @@ import { LazyStore } from "@tauri-apps/plugin-store";
 
 // --- Types ---
 
+/**
+ * Represents a single open project tab in the workspace sidebar.
+ *
+ * @property id - Random UUID generated on creation; stable across persisted sessions.
+ * @property projectPath - Absolute filesystem path; used as the dedup key in `openProject`.
+ * @property active - Exactly one tab should be active at a time; enforced by store actions.
+ * @property sessions - Reserved for future per-tab session tracking (currently unused).
+ */
 export type WorkspaceTab = {
   id: string;
   name: string;
@@ -12,10 +20,16 @@ export type WorkspaceTab = {
   sessions: string[];
 };
 
+/** Read-only slice of the workspace store; persisted to disk via Zustand `persist`. */
 type WorkspaceState = {
   tabs: WorkspaceTab[];
 };
 
+/**
+ * Mutating actions for workspace tab management.
+ * All actions are synchronous and trigger a Zustand persist write-through
+ * to the Tauri LazyStore (async, fire-and-forget).
+ */
 type WorkspaceActions = {
   openProject: (path: string) => void;
   selectTab: (id: string) => void;
@@ -24,8 +38,19 @@ type WorkspaceActions = {
 
 // --- Tauri LazyStore-backed StateStorage adapter ---
 
+/**
+ * Singleton LazyStore instance pointing to `store.json` in the Tauri app-data dir.
+ * LazyStore lazily initialises the underlying file on first read/write.
+ */
 const lazyStore = new LazyStore("store.json");
 
+/**
+ * Zustand-compatible {@link StateStorage} adapter backed by the Tauri plugin-store.
+ *
+ * Each `setItem`/`removeItem` call issues an explicit `save()` to flush to disk,
+ * because LazyStore only writes on shutdown by default and data would be lost
+ * if the app is force-quit.
+ */
 const tauriStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
     try {
@@ -56,6 +81,7 @@ const tauriStorage: StateStorage = {
 
 // --- Helpers ---
 
+/** Extracts the last path segment to use as a human-readable tab label. */
 function basename(path: string): string {
   const segments = path.replace(/\/+$/, "").split("/");
   return segments[segments.length - 1] || path;
@@ -63,6 +89,18 @@ function basename(path: string): string {
 
 // --- Store ---
 
+/**
+ * Global workspace store managing open project tabs.
+ *
+ * Uses Zustand `persist` middleware with a custom Tauri LazyStore-backed storage
+ * adapter so tabs survive app restarts. Only the `tabs` array is persisted
+ * (via `partialize`); actions are excluded.
+ *
+ * Key behaviors:
+ * - `openProject` deduplicates by `projectPath` -- opening the same path twice
+ *   simply activates the existing tab.
+ * - `closeTab` auto-activates the first remaining tab when the closed tab was active.
+ */
 export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()(
   persist(
     (set, get) => ({
