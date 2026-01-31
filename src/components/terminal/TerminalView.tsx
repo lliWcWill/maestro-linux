@@ -9,6 +9,12 @@ import { TerminalHeader, type SessionStatus, type AIProvider } from "./TerminalH
 import { QuickActionPills } from "./QuickActionPills";
 import { useSessionStore, type AiMode, type SessionStatus as BackendStatus } from "@/stores/useSessionStore";
 
+/**
+ * Props for {@link TerminalView}.
+ * @property sessionId - Backend PTY session ID used to route stdin/stdout and resize events.
+ * @property status - Fallback status used only when the session store has no entry yet.
+ * @property onKill - Callback invoked after the backend kill IPC completes (or fails).
+ */
 interface TerminalViewProps {
   sessionId: number;
   status?: SessionStatus;
@@ -57,6 +63,18 @@ function cellStatusClass(status: SessionStatus): string {
   }
 }
 
+/**
+ * Renders a single xterm.js terminal bound to a backend PTY session.
+ *
+ * On mount: creates a Terminal instance with FitAddon (auto-resize) and WebLinksAddon
+ * (clickable URLs), subscribes to the Tauri `pty-output-{sessionId}` event, and wires
+ * xterm onData/onResize to the corresponding backend IPC calls. A ResizeObserver keeps
+ * the terminal dimensions in sync when the container layout changes.
+ *
+ * On unmount: sets a `disposed` flag to prevent late PTY writes, disconnects the
+ * ResizeObserver, disposes xterm listeners, unsubscribes the Tauri event listener
+ * (even if the listener promise hasn't resolved yet), and destroys the Terminal.
+ */
 export function TerminalView({
   sessionId,
   status = "idle",
@@ -72,6 +90,10 @@ export function TerminalView({
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
 
+  /**
+   * Sends a kill IPC to the backend and always invokes onKill afterward,
+   * even on failure, so the parent grid can remove the dead cell.
+   */
   const handleKill = useCallback(
     (id: number) => {
       killSession(id)

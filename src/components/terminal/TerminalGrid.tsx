@@ -2,8 +2,13 @@ import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHand
 import { TerminalView } from "./TerminalView";
 import { spawnShell, killSession } from "@/lib/terminal";
 
+/** Hard ceiling on concurrent PTY sessions per grid to bound resource usage. */
 const MAX_SESSIONS = 6;
 
+/**
+ * Returns Tailwind grid-cols/grid-rows classes that produce a compact layout
+ * for the given session count (1x1, 2x1, 3x1, 2x2, 3x2, etc.).
+ */
 function gridClass(count: number): string {
   if (count <= 1) return "grid-cols-1 grid-rows-1";
   if (count === 2) return "grid-cols-2 grid-rows-1";
@@ -15,15 +20,40 @@ function gridClass(count: number): string {
   return "grid-cols-4";
 }
 
+/**
+ * Imperative handle exposed via `useImperativeHandle` so parent components
+ * (e.g. a toolbar button) can add sessions without lifting state up.
+ */
 export interface TerminalGridHandle {
   addSession: () => void;
 }
 
+/**
+ * @property projectPath - Working directory passed to `spawnShell`; when absent the backend
+ *   uses its own default cwd.
+ * @property onSessionCountChange - Fires whenever the session array length changes,
+ *   letting parents update badge counts or toolbar state.
+ */
 interface TerminalGridProps {
   projectPath?: string;
   onSessionCountChange?: (count: number) => void;
 }
 
+/**
+ * Manages a dynamic grid of {@link TerminalView} cells backed by PTY sessions.
+ *
+ * Lifecycle:
+ * - On mount, spawns a single shell and stores its ID. If the effect is
+ *   cancelled before the spawn resolves (React Strict Mode double-mount),
+ *   the session is killed immediately to avoid orphaned PTYs.
+ * - `sessionsRef` is kept in sync with state so the unmount cleanup can
+ *   kill all live sessions without stale closure issues.
+ * - When all sessions are killed by the user (length drops to 0 after
+ *   initial mount), an auto-respawn effect creates a fresh session so
+ *   the user is never left with an empty grid.
+ * - `addSession` double-checks MAX_SESSIONS inside the setState updater
+ *   to guard against race conditions from rapid clicks.
+ */
 export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(function TerminalGrid({ projectPath, onSessionCountChange }, ref) {
   const [sessions, setSessions] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
