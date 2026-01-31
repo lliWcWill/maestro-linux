@@ -71,7 +71,7 @@ export function TopBar({
               <ChevronDown size={11} className="text-maestro-muted" />
             </button>
 
-            {branchDropdownOpen && repoPath && (
+            {branchDropdownOpen && (
               <BranchDropdown
                 repoPath={repoPath}
                 currentBranch={branchName}

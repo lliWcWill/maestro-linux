@@ -1,7 +1,7 @@
-import { useSessionStore, type SessionStatus } from "@/stores/useSessionStore";
+import { useSessionStore, type BackendSessionStatus } from "@/stores/useSessionStore";
 
 const STATUS_DEFS: {
-  key: SessionStatus;
+  key: BackendSessionStatus;
   label: string;
   colorClass: string;
 }[] = [

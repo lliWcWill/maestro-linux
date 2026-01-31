@@ -27,30 +27,38 @@ export function BranchDropdown({
   const [focusIndex, setFocusIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const fetchBranches = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await invoke<BranchInfo[]>("git_branches", { repoPath });
+      if (!mountedRef.current) return;
+      setBranches(result);
+      const currentIdx = result.findIndex((b) => b.is_current);
+      setFocusIndex(currentIdx >= 0 ? currentIdx : 0);
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch branches:", err);
+      if (!mountedRef.current) return;
+      setBranches([]);
+      setError(err instanceof Error ? err.message : "Failed to load branches");
+      setLoading(false);
+    }
+  }, [repoPath]);
 
   // Fetch branches on mount
   useEffect(() => {
-    let cancelled = false;
-    invoke<BranchInfo[]>("git_branches", { repoPath })
-      .then((result) => {
-        if (!cancelled) {
-          setBranches(result);
-          setLoading(false);
-          const currentIdx = result.findIndex((b) => b.is_current);
-          setFocusIndex(currentIdx >= 0 ? currentIdx : 0);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch branches:", err);
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load branches");
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [repoPath]);
+    fetchBranches();
+  }, [fetchBranches]);
 
   // Close on outside click
   useEffect(() => {
@@ -102,7 +110,12 @@ export function BranchDropdown({
       const activeEl = document.activeElement;
       const isDropdownFocused = dropdownRef.current.contains(activeEl as Node);
       const isBodyFocused = activeEl === document.body;
-      if (isDropdownFocused || isBodyFocused) {
+      const hasModal = Boolean(
+        document.querySelector(
+          '[role="dialog"], [data-modal-open="true"], .modal, .overlay',
+        ),
+      );
+      if (isDropdownFocused || (isBodyFocused && !hasModal)) {
         handleKeyDown(e);
       }
     };
@@ -184,7 +197,16 @@ export function BranchDropdown({
         )}
         {!loading && error && (
           <div className="px-3 py-2 text-sm text-maestro-red">
-            {error}
+            <div>Failed to load branches</div>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => fetchBranches()}
+                className="rounded border border-maestro-border px-2 py-1 text-[11px] text-maestro-text hover:bg-maestro-border/40"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
         {!loading && !error && branches.length === 0 && (

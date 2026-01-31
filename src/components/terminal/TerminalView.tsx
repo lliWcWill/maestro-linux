@@ -7,7 +7,7 @@ import "@xterm/xterm/css/xterm.css";
 import { writeStdin, resizePty, killSession, onPtyOutput } from "@/lib/terminal";
 import { TerminalHeader, type SessionStatus, type AIProvider } from "./TerminalHeader";
 import { QuickActionPills } from "./QuickActionPills";
-import { useSessionStore, type AiMode, type SessionStatus as BackendStatus } from "@/stores/useSessionStore";
+import { useSessionStore, type AiMode, type BackendSessionStatus } from "@/stores/useSessionStore";
 
 /**
  * Props for {@link TerminalView}.
@@ -29,12 +29,17 @@ function mapAiMode(mode: AiMode): AIProvider {
     Codex: "codex",
     Plain: "plain",
   };
-  return map[mode] ?? "claude";
+  const provider = map[mode];
+  if (!provider) {
+    console.warn("Unknown AiMode:", mode);
+    return "claude";
+  }
+  return provider;
 }
 
 /** Map backend SessionStatus to frontend SessionStatus */
-function mapStatus(status: BackendStatus): SessionStatus {
-  const map: Record<BackendStatus, SessionStatus> = {
+function mapStatus(status: BackendSessionStatus): SessionStatus {
+  const map: Record<BackendSessionStatus, SessionStatus> = {
     Starting: "starting",
     Idle: "idle",
     Working: "working",
@@ -42,7 +47,12 @@ function mapStatus(status: BackendStatus): SessionStatus {
     Done: "done",
     Error: "error",
   };
-  return map[status] ?? "idle";
+  const mapped = map[status];
+  if (!mapped) {
+    console.warn("Unknown backend session status:", status);
+    return "idle";
+  }
+  return mapped;
 }
 
 /** Map session status to CSS class for border/glow */

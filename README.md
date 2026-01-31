@@ -49,7 +49,7 @@ Maestro runs multiple AI sessions in parallel. Each session gets its own termina
 
 ## Architecture
 
-```
+```text
 +---------------------------------------------------------------+
 |                   Maestro Linux (Tauri 2.x)                   |
 |                                                               |
@@ -74,7 +74,7 @@ Maestro runs multiple AI sessions in parallel. Each session gets its own termina
 ### Tech Stack
 
 | Layer | Technology |
-|-------|------------|
+| ----- | ---------- |
 | Framework | Tauri 2.0 |
 | Backend | Rust (2021 edition) |
 | Frontend | React 18, TypeScript 5.5 |
@@ -94,6 +94,7 @@ Maestro runs multiple AI sessions in parallel. Each session gets its own termina
 - Node.js >= 18
 - Rust (stable) via [rustup](https://rustup.rs)
 - System libraries:
+
   ```bash
   sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
   ```
@@ -127,7 +128,7 @@ npm install -g @openai/codex                # OpenAI Codex
 
 ## Project Structure
 
-```
+```text
 maestro-linux/
 ├── src/                        # React frontend
 │   ├── components/

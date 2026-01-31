@@ -26,6 +26,7 @@ import {
   Wrench,
   Check,
 } from "lucide-react";
+import { useSessionStore, type BackendSessionStatus } from "@/stores/useSessionStore";
 
 type SidebarTab = "config" | "processes";
 
@@ -42,6 +43,24 @@ const cardClass =
 
 const divider = <div className="h-px bg-maestro-border/30 my-1" />;
 
+const STATUS_DOT_CLASS: Record<BackendSessionStatus, string> = {
+  Starting: "bg-maestro-orange",
+  Idle: "bg-maestro-accent",
+  Working: "bg-maestro-green",
+  NeedsInput: "bg-maestro-yellow",
+  Done: "bg-maestro-accent",
+  Error: "bg-maestro-red",
+};
+
+const STATUS_LABEL: Record<BackendSessionStatus, string> = {
+  Starting: "Starting",
+  Idle: "Idle",
+  Working: "Working",
+  NeedsInput: "Needs Input",
+  Done: "Done",
+  Error: "Error",
+};
+
 /* ================================================================ */
 /*  SIDEBAR ROOT                                                     */
 /* ================================================================ */
@@ -51,6 +70,9 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
   const [width, setWidth] = useState(240);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; w: number } | null>(null);
+  const minWidth = 180;
+  const maxWidth = 320;
+  const collapseThreshold = 60;
 
   const handleDragStart = useCallback(
     (e: React.MouseEvent) => {
@@ -61,18 +83,62 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
     [width],
   );
 
+  const clampWidth = useCallback(
+    (value: number) => Math.min(maxWidth, Math.max(minWidth, value)),
+    [maxWidth, minWidth],
+  );
+
+  const handleResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      let next = width;
+      const smallStep = 8;
+      const largeStep = 24;
+
+      switch (e.key) {
+        case "ArrowLeft":
+          next = width - smallStep;
+          break;
+        case "ArrowRight":
+          next = width + smallStep;
+          break;
+        case "PageDown":
+          next = width - largeStep;
+          break;
+        case "PageUp":
+          next = width + largeStep;
+          break;
+        case "Home":
+          next = minWidth;
+          break;
+        case "End":
+          next = maxWidth;
+          break;
+        default:
+          return;
+      }
+
+      e.preventDefault();
+      if (next < collapseThreshold) {
+        onCollapse?.();
+        return;
+      }
+      setWidth(clampWidth(next));
+    },
+    [width, minWidth, maxWidth, collapseThreshold, onCollapse, clampWidth],
+  );
+
   useEffect(() => {
     if (!isDragging) return;
 
     const onMove = (e: MouseEvent) => {
       if (!dragStartRef.current) return;
       const raw = dragStartRef.current.w + (e.clientX - dragStartRef.current.x);
-      if (raw < 60) {
+      if (raw < collapseThreshold) {
         setIsDragging(false);
         onCollapse?.();
         return;
       }
-      setWidth(Math.min(320, Math.max(180, raw)));
+      setWidth(clampWidth(raw));
     };
 
     const onUp = () => setIsDragging(false);
@@ -138,10 +204,15 @@ export function Sidebar({ collapsed, onCollapse, theme, onToggleTheme }: Sidebar
         <div
           role="separator"
           aria-orientation="vertical"
+          aria-valuemin={minWidth}
+          aria-valuemax={maxWidth}
+          aria-valuenow={Math.round(width)}
+          aria-valuetext={`${Math.round(width)} pixels`}
           tabIndex={0}
           aria-label="Resize sidebar"
           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-maestro-accent/30 active:bg-maestro-accent/40"
           onMouseDown={handleDragStart}
+          onKeyDown={handleResizeKeyDown}
         />
       )}
     </aside>
@@ -286,12 +357,7 @@ function ProjectContextSection() {
 
 function SessionsSection() {
   const [expanded, setExpanded] = useState(true);
-  const sessions = [
-    { id: 1, status: "active" },
-    { id: 2, status: "active" },
-    { id: 3, status: "active" },
-    { id: 4, status: "active" },
-  ];
+  const sessions = useSessionStore((s) => s.sessions);
 
   return (
     <div className={cardClass}>
@@ -310,23 +376,32 @@ function SessionsSection() {
         <Bot size={13} className="text-maestro-accent animate-breathe" />
         <span className="flex-1">Sessions</span>
         <span className="bg-maestro-accent/20 text-maestro-accent text-[10px] px-1.5 rounded-full font-bold">
-          4
+          {sessions.length}
         </span>
       </div>
 
       {expanded && (
         <div className="space-y-0.5">
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text hover:bg-maestro-border/40"
-            >
-              <span className="h-2 w-2 shrink-0 rounded-full bg-maestro-green" />
-              <Bot size={12} className="text-maestro-purple shrink-0" />
-              <span className="flex-1 font-medium">#{s.id}</span>
-              <ChevronDown size={12} className="text-maestro-muted" />
+          {sessions.length === 0 ? (
+            <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
+              No sessions yet
             </div>
-          ))}
+          ) : (
+            sessions.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text hover:bg-maestro-border/40"
+              >
+                <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[s.status]}`} />
+                <Bot size={12} className="text-maestro-purple shrink-0" />
+                <span className="flex-1 font-medium">#{s.id}</span>
+                <span className="text-[10px] text-maestro-muted">
+                  {STATUS_LABEL[s.status]}
+                </span>
+                <ChevronDown size={12} className="text-maestro-muted" />
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -560,12 +635,7 @@ function ProcessesTab() {
 /* ── 1. Agent Sessions ── */
 
 function AgentSessionsSection() {
-  const sessions = [
-    { id: 1, model: "Claude", state: "Working", color: "bg-maestro-green" },
-    { id: 2, model: "Claude", state: "Idle", color: "bg-maestro-accent" },
-    { id: 3, model: "Gemini", state: "Working", color: "bg-maestro-green" },
-    { id: 4, model: "Claude", state: "Idle", color: "bg-maestro-accent" },
-  ];
+  const sessions = useSessionStore((s) => s.sessions);
 
   return (
     <div className={cardClass}>
@@ -576,35 +646,35 @@ function AgentSessionsSection() {
         breathe
         badge={
           <span className="bg-maestro-accent/20 text-maestro-accent text-[10px] px-1.5 rounded-full font-bold">
-            4
+            {sessions.length}
           </span>
         }
       />
       <div className="space-y-0.5">
-        {sessions.map((s) => (
-          <div
-            key={s.id}
-            className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text hover:bg-maestro-border/40"
-          >
-            <span
-              className={`h-2 w-2 shrink-0 rounded-full ${s.color}`}
-            />
-            <span className="flex-1 truncate">
-              <span className="font-medium">#{s.id}</span>{" "}
-              <span className="text-maestro-muted">{s.model}</span>{" "}
-              <span className="text-maestro-muted">-</span>{" "}
-              <span
-                className={
-                  s.state === "Working"
-                    ? "text-maestro-green"
-                    : "text-maestro-accent"
-                }
-              >
-                {s.state}
-              </span>
-            </span>
+        {sessions.length === 0 ? (
+          <div className="px-2 py-1 text-[11px] text-maestro-muted/60">
+            No active agents
           </div>
-        ))}
+        ) : (
+          sessions.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-maestro-text hover:bg-maestro-border/40"
+            >
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[s.status]}`}
+              />
+              <span className="flex-1 truncate">
+                <span className="font-medium">#{s.id}</span>{" "}
+                <span className="text-maestro-muted">{s.mode}</span>{" "}
+                <span className="text-maestro-muted">-</span>{" "}
+                <span className="text-maestro-muted">
+                  {STATUS_LABEL[s.status]}
+                </span>
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

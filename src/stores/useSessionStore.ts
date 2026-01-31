@@ -9,7 +9,7 @@ export type AiMode = "Claude" | "Gemini" | "Codex" | "Plain";
  * Backend-emitted session lifecycle states.
  * Must stay in sync with the Rust `SessionStatus` enum.
  */
-export type SessionStatus =
+export type BackendSessionStatus =
   | "Starting"
   | "Idle"
   | "Working"
@@ -28,14 +28,14 @@ export interface SessionConfig {
   id: number;
   mode: AiMode;
   branch: string | null;
-  status: SessionStatus;
+  status: BackendSessionStatus;
   worktree_path: string | null;
 }
 
 /** Shape of the Tauri `session-status-changed` event payload. */
 interface SessionStatusPayload {
   session_id: number;
-  status: SessionStatus;
+  status: BackendSessionStatus;
 }
 
 /**
@@ -44,8 +44,8 @@ interface SessionStatusPayload {
  * @property sessions - Authoritative list of sessions fetched from the backend.
  * @property fetchSessions - Performs a one-shot IPC fetch to replace the session list.
  * @property initListeners - Subscribes to the global `session-status-changed` Tauri event.
- *   Returns an unlisten function; the caller must ensure this is called exactly once
- *   to avoid duplicate subscriptions (typically via a useEffect cleanup).
+ *   Returns an unlisten function; callers must invoke the cleanup to decrement
+ *   a reference count and remove the listener when the last subscriber exits.
  */
 interface SessionState {
   sessions: SessionConfig[];
@@ -59,7 +59,9 @@ interface SessionState {
  * Global session store. Not persisted — sessions are ephemeral and
  * re-fetched from the backend on app launch via `fetchSessions`.
  */
-let listenerInitialized = false;
+let listenerCount = 0;
+let pendingInit: Promise<void> | null = null;
+let activeUnlisten: UnlistenFn | null = null;
 
 
 export const useSessionStore = create<SessionState>()((set) => ({
@@ -79,25 +81,42 @@ export const useSessionStore = create<SessionState>()((set) => ({
   },
 
   initListeners: async () => {
-    if (listenerInitialized) return () => {};
-    listenerInitialized = true;
-
-    const unlisten = await listen<SessionStatusPayload>(
-      "session-status-changed",
-      (event) => {
-        set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === event.payload.session_id
-              ? { ...s, status: event.payload.status }
-              : s,
-          ),
-        }));
-      },
-    );
+    listenerCount += 1;
+    try {
+      if (!activeUnlisten) {
+        if (!pendingInit) {
+          pendingInit = listen<SessionStatusPayload>(
+            "session-status-changed",
+            (event) => {
+              set((state) => ({
+                sessions: state.sessions.map((s) =>
+                  s.id === event.payload.session_id
+                    ? { ...s, status: event.payload.status }
+                    : s,
+                ),
+              }));
+            },
+          )
+            .then((unlisten) => {
+              activeUnlisten = unlisten;
+            })
+            .finally(() => {
+              pendingInit = null;
+            });
+        }
+        await pendingInit;
+      }
+    } catch (err) {
+      listenerCount = Math.max(0, listenerCount - 1);
+      throw err;
+    }
 
     return () => {
-      unlisten();
-      listenerInitialized = false;
+      listenerCount = Math.max(0, listenerCount - 1);
+      if (listenerCount === 0 && activeUnlisten) {
+        activeUnlisten();
+        activeUnlisten = null;
+      }
     };
   },
 }));

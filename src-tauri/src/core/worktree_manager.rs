@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -13,7 +14,9 @@ fn worktree_base_dir() -> PathBuf {
         .join("worktrees")
 }
 
-/// Fallback if ProjectDirs fails (e.g., no HOME set)
+/// Fallback if ProjectDirs fails (e.g., no HOME set).
+/// This GUI app assumes a user session on a desktop environment where HOME is set.
+/// Panicking here is intentional to fail fast in headless/container/systemd scenarios.
 fn dirs_fallback() -> PathBuf {
     std::env::var("HOME")
         .map(PathBuf::from)
@@ -174,11 +177,11 @@ impl WorktreeManager {
             .collect();
 
         // Canonicalize active paths for reliable comparison; fall back to raw path
-        let mut active: Vec<PathBuf> = Vec::with_capacity(active_raw.len());
+        let mut active: HashSet<String> = HashSet::with_capacity(active_raw.len());
         for raw in &active_raw {
             let p = Path::new(raw);
             let canonical = tokio::fs::canonicalize(p).await.unwrap_or_else(|_| p.to_path_buf());
-            active.push(canonical);
+            active.insert(canonical.to_string_lossy().to_string());
         }
 
         if let Ok(mut entries) = tokio::fs::read_dir(&managed_dir).await {
@@ -187,7 +190,8 @@ impl WorktreeManager {
                 let canonical_entry = tokio::fs::canonicalize(&path)
                     .await
                     .unwrap_or_else(|_| path.clone());
-                if !active.contains(&canonical_entry) && path.is_dir() {
+                let entry_key = canonical_entry.to_string_lossy().to_string();
+                if !active.contains(&entry_key) && path.is_dir() {
                     log::info!("Removing orphaned worktree dir: {}", path.display());
                     let _ = tokio::fs::remove_dir_all(&path).await;
                 }

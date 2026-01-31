@@ -137,14 +137,22 @@ function App() {
         <div className="bg-maestro-bg">
           <BottomBar
             sessionsActive={sessionsLaunched}
-            sessionCount={DEFAULT_SESSION_COUNT}
+            sessionCount={liveSessionCount}
             onSelectDirectory={handleOpenProject}
             onLaunchAll={handleAddSession}
-            onStopAll={() => {
+            onStopAll={async () => {
               // Kill all running sessions via the session store
               const sessions = useSessionStore.getState().sessions;
-              void Promise.all(sessions.map((s) => killSession(s.id).catch(console.error)));
+              const results = await Promise.allSettled(
+                sessions.map((s) => killSession(s.id)),
+              );
+              for (const result of results) {
+                if (result.status === "rejected") {
+                  console.error("Failed to stop session:", result.reason);
+                }
+              }
               setSessionsLaunched(false);
+              setLiveSessionCount(0);
             }}
           />
         </div>
