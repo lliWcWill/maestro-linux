@@ -66,7 +66,7 @@ Maestro runs multiple AI sessions in parallel. Each session gets its own termina
 |  +------------------------+   +----------------------------+  |
 |              |                              |                 |
 |       Zustand stores            Tauri IPC commands            |
-|  (session, git, workspace)  (spawn, resize, write, kill,     |
+|  (session, git, workspace)  (spawn, resize, write, kill,      |
 |                              git_log, branches, checkout)     |
 +---------------------------------------------------------------+
 ```
