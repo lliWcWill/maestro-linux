@@ -28,6 +28,7 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
   const [sessions, setSessions] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const sessionsRef = useRef<number[]>([]);
+  const mounted = useRef(false);
 
   // Keep ref in sync so cleanup can read current session IDs
   useEffect(() => {
@@ -41,6 +42,7 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
       .then((id) => {
         if (!cancelled) {
           setSessions([id]);
+          mounted.current = true;
         } else {
           // Component unmounted before spawn resolved — kill the orphan
           killSession(id).catch(console.error);
@@ -55,12 +57,25 @@ export function TerminalGrid({ projectPath }: TerminalGridProps) {
 
     return () => {
       cancelled = true;
+      mounted.current = false;
       // Kill all active sessions on unmount to prevent orphaned PTYs
       for (const id of sessionsRef.current) {
         killSession(id).catch(console.error);
       }
     };
   }, []);
+
+  // Auto-respawn a shell when all sessions are closed (not initial mount, not error)
+  useEffect(() => {
+    if (sessions.length === 0 && mounted.current && !error) {
+      spawnShell(projectPath)
+        .then((id) => setSessions([id]))
+        .catch((err) => {
+          console.error(err);
+          setError("Failed to restart terminal session");
+        });
+    }
+  }, [sessions.length, error, projectPath]);
 
   const handleKill = useCallback((sessionId: number) => {
     setSessions((prev) => prev.filter((id) => id !== sessionId));
