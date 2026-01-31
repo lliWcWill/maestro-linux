@@ -1,36 +1,47 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Check } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 
-const MOCK_BRANCHES = [
-  "main",
-  "master",
-  "develop",
-  "feature/login",
-  "feature/dashboard",
-  "claude2",
-  "claude3",
-  "claude4",
-  "apiTesting22",
-  "origin/main",
-  "origin/develop",
-];
+interface BranchInfo {
+  name: string;
+  is_remote: boolean;
+  is_current: boolean;
+}
 
 interface BranchDropdownProps {
+  repoPath: string;
   currentBranch: string;
   onSelect: (branch: string) => void;
   onClose: () => void;
 }
 
 export function BranchDropdown({
+  repoPath,
   currentBranch,
   onSelect,
   onClose,
 }: BranchDropdownProps) {
-  const [focusIndex, setFocusIndex] = useState(() =>
-    MOCK_BRANCHES.indexOf(currentBranch)
-  );
+  const [branches, setBranches] = useState<BranchInfo[]>([]);
+  const [focusIndex, setFocusIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch branches on mount
+  useEffect(() => {
+    let cancelled = false;
+    invoke<BranchInfo[]>("git_branches", { repoPath })
+      .then((result) => {
+        if (!cancelled) {
+          setBranches(result);
+          const currentIdx = result.findIndex((b) => b.is_current);
+          setFocusIndex(currentIdx >= 0 ? currentIdx : 0);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch branches:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [repoPath]);
 
   // Close on outside click
   useEffect(() => {
@@ -53,7 +64,7 @@ export function BranchDropdown({
         case "ArrowDown":
           e.preventDefault();
           setFocusIndex((prev) =>
-            prev < MOCK_BRANCHES.length - 1 ? prev + 1 : prev,
+            prev < branches.length - 1 ? prev + 1 : prev,
           );
           break;
         case "ArrowUp":
@@ -62,8 +73,8 @@ export function BranchDropdown({
           break;
         case "Enter":
           e.preventDefault();
-          if (focusIndex >= 0 && focusIndex < MOCK_BRANCHES.length) {
-            onSelect(MOCK_BRANCHES[focusIndex]);
+          if (focusIndex >= 0 && focusIndex < branches.length) {
+            onSelect(branches[focusIndex].name);
           }
           break;
         case "Escape":
@@ -72,7 +83,7 @@ export function BranchDropdown({
           break;
       }
     },
-    [focusIndex, onSelect, onClose],
+    [focusIndex, branches, onSelect, onClose],
   );
 
   useEffect(() => {
@@ -116,15 +127,15 @@ export function BranchDropdown({
 
       {/* Branch list */}
       <div ref={listRef} className="max-h-64 overflow-y-auto px-1 pb-2">
-        {MOCK_BRANCHES.map((branch, i) => {
-          const isCurrent = branch === currentBranch;
+        {branches.map((branch, i) => {
+          const isCurrent = branch.is_current;
           const isFocused = i === focusIndex;
 
           return (
             <button
-              key={branch}
+              key={branch.name}
               data-branch-item
-              onClick={() => onSelect(branch)}
+              onClick={() => onSelect(branch.name)}
               onMouseEnter={() => setFocusIndex(i)}
               className={`flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
                 isFocused
@@ -144,11 +155,21 @@ export function BranchDropdown({
                     : "font-semibold text-maestro-text"
                 }`}
               >
-                {branch}
+                {branch.name}
               </span>
+              {branch.is_remote && (
+                <span className="ml-auto text-[9px] text-maestro-muted/60">
+                  remote
+                </span>
+              )}
             </button>
           );
         })}
+        {branches.length === 0 && (
+          <div className="px-3 py-2 text-sm text-maestro-muted">
+            Loading branches...
+          </div>
+        )}
       </div>
     </div>
   );

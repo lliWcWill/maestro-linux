@@ -8,6 +8,7 @@ import { IdleLandingView } from "./components/shared/IdleLandingView";
 import { FloatingAddButton } from "./components/shared/FloatingAddButton";
 import { GitGraphPanel } from "./components/git/GitGraphPanel";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
+import { useSessionStore } from "@/stores/useSessionStore";
 import { useOpenProject } from "@/lib/useOpenProject";
 
 const DEFAULT_SESSION_COUNT = 6;
@@ -21,6 +22,8 @@ function isValidTheme(value: string | null): value is Theme {
 
 function App() {
   const tabs = useWorkspaceStore((s) => s.tabs);
+  const fetchSessions = useSessionStore((s) => s.fetchSessions);
+  const initListeners = useSessionStore((s) => s.initListeners);
   const handleOpenProject = useOpenProject();
   const termGridRef = useRef<TerminalGridHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -36,6 +39,15 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("maestro-theme", theme);
   }, [theme]);
+
+  // Initialize session store: fetch initial state and subscribe to events
+  useEffect(() => {
+    fetchSessions();
+    const unlistenPromise = initListeners();
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [fetchSessions, initListeners]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
   const activeTab = tabs.find((tab) => tab.active) ?? null;
@@ -81,6 +93,7 @@ function App() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           branchName={activeTab ? activeTab.name : undefined}
+          repoPath={activeTab ? activeTab.projectPath : undefined}
           onToggleGitPanel={() => setGitPanelOpen((prev) => !prev)}
           gitPanelOpen={gitPanelOpen}
         />

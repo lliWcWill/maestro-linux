@@ -17,6 +17,7 @@ interface TopBarProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   branchName?: string;
+  repoPath?: string;
   onToggleGitPanel?: () => void;
   gitPanelOpen?: boolean;
 }
@@ -25,6 +26,7 @@ export function TopBar({
   sidebarOpen,
   onToggleSidebar,
   branchName,
+  repoPath,
   onToggleGitPanel,
   gitPanelOpen,
 }: TopBarProps) {
@@ -66,8 +68,9 @@ export function TopBar({
               <ChevronDown size={11} className="text-maestro-muted" />
             </button>
 
-            {branchDropdownOpen && (
+            {branchDropdownOpen && repoPath && (
               <BranchDropdown
+                repoPath={repoPath}
                 currentBranch={branchName}
                 onSelect={() => setBranchDropdownOpen(false)}
                 onClose={() => setBranchDropdownOpen(false)}

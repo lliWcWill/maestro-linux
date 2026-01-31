@@ -5,13 +5,38 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 
 import { writeStdin, resizePty, killSession, onPtyOutput } from "@/lib/terminal";
-import { TerminalHeader, type SessionStatus } from "./TerminalHeader";
+import { TerminalHeader, type SessionStatus, type AIProvider } from "./TerminalHeader";
 import { QuickActionPills } from "./QuickActionPills";
+import { useSessionStore, type AiMode, type SessionStatus as BackendStatus } from "@/stores/useSessionStore";
 
 interface TerminalViewProps {
   sessionId: number;
   status?: SessionStatus;
   onKill: (sessionId: number) => void;
+}
+
+/** Map backend AiMode to frontend AIProvider */
+function mapAiMode(mode: AiMode): AIProvider {
+  const map: Record<AiMode, AIProvider> = {
+    Claude: "claude",
+    Gemini: "gemini",
+    Codex: "codex",
+    Plain: "plain",
+  };
+  return map[mode] ?? "claude";
+}
+
+/** Map backend SessionStatus to frontend SessionStatus */
+function mapStatus(status: BackendStatus): SessionStatus {
+  const map: Record<BackendStatus, SessionStatus> = {
+    Starting: "starting",
+    Idle: "idle",
+    Working: "working",
+    NeedsInput: "needs-input",
+    Done: "done",
+    Error: "error",
+  };
+  return map[status] ?? "idle";
 }
 
 /** Map session status to CSS class for border/glow */
@@ -37,6 +62,12 @@ export function TerminalView({
   status = "idle",
   onKill,
 }: TerminalViewProps) {
+  const sessionConfig = useSessionStore((s) =>
+    s.sessions.find((sess) => sess.id === sessionId),
+  );
+  const effectiveStatus = sessionConfig ? mapStatus(sessionConfig.status) : status;
+  const effectiveProvider = sessionConfig ? mapAiMode(sessionConfig.mode) : "claude";
+  const effectiveBranch = sessionConfig?.branch ?? "Current";
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -160,12 +191,14 @@ export function TerminalView({
 
   return (
     <div
-      className={`content-dark terminal-cell flex h-full flex-col bg-maestro-bg ${cellStatusClass(status)}`}
+      className={`content-dark terminal-cell flex h-full flex-col bg-maestro-bg ${cellStatusClass(effectiveStatus)}`}
     >
       {/* Rich header bar */}
       <TerminalHeader
         sessionId={sessionId}
-        status={status}
+        provider={effectiveProvider}
+        status={effectiveStatus}
+        branchName={effectiveBranch}
         onKill={handleKill}
       />
 

@@ -19,10 +19,13 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 portable-pty = "0.8"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process"] }
 libc = "0.2"
 dashmap = "6"
 log = "0.4"
+thiserror = "2"
+sha2 = "0.10"
+directories = "5"
 
 [profile.release]
 panic = "abort"

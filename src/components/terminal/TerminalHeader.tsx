@@ -6,6 +6,8 @@ import {
   GitCompareArrows,
   CheckCircle,
   Settings,
+  Terminal,
+  Code2,
   X,
 } from "lucide-react";
 
@@ -17,7 +19,7 @@ export type SessionStatus =
   | "done"
   | "error";
 
-export type AIProvider = "claude" | "gemini";
+export type AIProvider = "claude" | "gemini" | "codex" | "plain";
 
 interface TerminalHeaderProps {
   sessionId: number;
@@ -62,9 +64,13 @@ export function TerminalHeader({
   onKill,
   onLaunch,
 }: TerminalHeaderProps) {
-  const ProviderIcon = provider === "claude" ? BrainCircuit : Sparkles;
-  const providerLabel =
-    provider === "claude" ? "Claude Code" : "Gemini CLI";
+  const providerConfig: Record<AIProvider, { icon: typeof BrainCircuit; label: string }> = {
+    claude: { icon: BrainCircuit, label: "Claude Code" },
+    gemini: { icon: Sparkles, label: "Gemini CLI" },
+    codex: { icon: Code2, label: "Codex" },
+    plain: { icon: Terminal, label: "Terminal" },
+  };
+  const { icon: ProviderIcon, label: providerLabel } = providerConfig[provider];
 
   return (
     <div className="no-select flex h-7 shrink-0 items-center gap-1.5 border-b border-maestro-border bg-maestro-surface px-2">
