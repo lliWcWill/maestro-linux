@@ -18,7 +18,8 @@ pub async fn create_session(
     id: u32,
     mode: AiMode,
 ) -> Result<SessionConfig, String> {
-    Ok(state.create_session(id, mode))
+    state.create_session(id, mode)
+        .map_err(|existing| format!("Session {} already exists", existing.id))
 }
 
 /// Exposes `SessionManager::update_status` to the frontend.

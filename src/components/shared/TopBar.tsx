@@ -54,11 +54,14 @@ export function TopBar({
         </button>
 
         {/* Branch selector — wide area, embedded text with dropdown */}
-        {branchName && (
+        {branchName && repoPath && (
           <div className="relative">
             <button
               type="button"
               onClick={() => setBranchDropdownOpen((p) => !p)}
+              aria-haspopup="listbox"
+              aria-expanded={branchDropdownOpen}
+              aria-label="Select branch"
               className="flex items-center gap-1.5 rounded px-2 py-1 transition-colors hover:bg-maestro-card/50"
             >
               <GitBranch size={13} className="text-maestro-muted" />
@@ -90,11 +93,13 @@ export function TopBar({
 
       {/* Right: action icons */}
       <div className="flex items-center gap-0.5 mr-1">
+        {/* TODO: Wire settings panel when settings feature is added */}
         <button
           type="button"
-          className="rounded p-1.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
+          disabled
+          className="rounded p-1.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Settings"
-          title="Settings"
+          title="Settings (coming soon)"
         >
           <Settings size={14} />
         </button>

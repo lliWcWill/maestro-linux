@@ -19,9 +19,9 @@ pub async fn spawn_shell(
         let canonical = path
             .canonicalize()
             .map_err(|e| PtyError::spawn_failed(format!("Invalid cwd '{dir}': {e}")))?;
-        if !canonical.exists() || !canonical.is_dir() {
+        if !canonical.is_dir() {
             return Err(PtyError::spawn_failed(format!(
-                "cwd '{dir}' does not exist or is not a directory"
+                "cwd '{dir}' is not a directory"
             )));
         }
     }

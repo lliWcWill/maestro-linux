@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
+use tokio::time::{timeout, Duration};
 
 use super::error::GitError;
 
@@ -60,16 +61,23 @@ impl Git {
 
         let command_str = format!("git -C {} {}", self.repo_path.display(), args.join(" "));
 
-        let output = cmd.output().await.map_err(|source| {
-            if source.kind() == std::io::ErrorKind::NotFound {
-                GitError::GitNotFound
-            } else {
-                GitError::SpawnError {
-                    source,
-                    command: command_str.clone(),
+        let output = timeout(Duration::from_secs(30), cmd.output())
+            .await
+            .map_err(|_| GitError::CommandFailed {
+                code: -1,
+                stderr: format!("Command timed out after 30s: {}", command_str),
+                command: command_str.clone(),
+            })?
+            .map_err(|source| {
+                if source.kind() == std::io::ErrorKind::NotFound {
+                    GitError::GitNotFound
+                } else {
+                    GitError::SpawnError {
+                        source,
+                        command: command_str.clone(),
+                    }
                 }
-            }
-        })?;
+            })?;
 
         let stdout = String::from_utf8(output.stdout)?;
         let stderr = String::from_utf8(output.stderr)?;

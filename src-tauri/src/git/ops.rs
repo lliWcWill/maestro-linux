@@ -70,7 +70,7 @@ impl Git {
             let name = parts[1].trim().to_string();
 
             // Skip HEAD pointer entries like "origin/HEAD"
-            if name.contains("HEAD") {
+            if name == "HEAD" || name.ends_with("/HEAD") {
                 continue;
             }
 
@@ -95,11 +95,22 @@ impl Git {
     pub async fn current_branch(&self) -> Result<String, GitError> {
         match self.run(&["symbolic-ref", "--short", "HEAD"]).await {
             Ok(output) => Ok(output.trimmed().to_string()),
-            Err(_) => {
-                // Detached HEAD — fall back to short hash
-                let output = self.run(&["rev-parse", "--short", "HEAD"]).await?;
-                Ok(output.trimmed().to_string())
+            Err(GitError::CommandFailed { code, stderr, .. }) => {
+                // Git returns: "fatal: ref HEAD is not a symbolic ref"
+                if stderr.contains("not a symbolic ref") {
+                    // Detached HEAD — fall back to short hash
+                    let output = self.run(&["rev-parse", "--short", "HEAD"]).await?;
+                    Ok(output.trimmed().to_string())
+                } else {
+                    // Real error — propagate
+                    Err(GitError::CommandFailed {
+                        code,
+                        stderr,
+                        command: "git symbolic-ref --short HEAD".to_string(),
+                    })
+                }
             }
+            Err(e) => Err(e), // Other errors (GitNotFound, SpawnError, etc.)
         }
     }
 

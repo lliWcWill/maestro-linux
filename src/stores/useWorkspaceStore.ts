@@ -67,6 +67,7 @@ const tauriStorage: StateStorage = {
       await lazyStore.save();
     } catch (err) {
       console.error(`tauriStorage.setItem("${name}") failed:`, err);
+      throw err; // Let Zustand persist middleware handle it
     }
   },
   removeItem: async (name: string): Promise<void> => {
@@ -83,7 +84,8 @@ const tauriStorage: StateStorage = {
 
 /** Extracts the last path segment to use as a human-readable tab label. */
 function basename(path: string): string {
-  const segments = path.replace(/\/+$/, "").split("/");
+  const normalized = path.replace(/[\\/]+$/, "");
+  const segments = normalized.split(/[\\/]/);
   return segments[segments.length - 1] || path;
 }
 

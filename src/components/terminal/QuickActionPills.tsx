@@ -12,6 +12,7 @@ export function QuickActionPills() {
     <div className="no-select flex shrink-0 items-center gap-1 border-t border-maestro-border bg-maestro-surface px-2 py-1">
       {ACTIONS.map((a) => (
         <button
+          type="button"
           key={a.label}
           className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
         >

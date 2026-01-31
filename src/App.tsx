@@ -10,6 +10,7 @@ import { GitGraphPanel } from "./components/git/GitGraphPanel";
 import { useWorkspaceStore } from "@/stores/useWorkspaceStore";
 import { useSessionStore } from "@/stores/useSessionStore";
 import { useOpenProject } from "@/lib/useOpenProject";
+import { killSession } from "@/lib/terminal";
 
 const DEFAULT_SESSION_COUNT = 6;
 
@@ -42,8 +43,15 @@ function App() {
 
   // Initialize session store: fetch initial state and subscribe to events
   useEffect(() => {
-    fetchSessions();
-    const unlistenPromise = initListeners();
+    fetchSessions().catch((err) => {
+      console.error("Failed to fetch sessions:", err);
+    });
+
+    const unlistenPromise = initListeners().catch((err) => {
+      console.error("Failed to initialize listeners:", err);
+      return () => {}; // no-op cleanup
+    });
+
     return () => {
       unlistenPromise.then((unlisten) => unlisten());
     };
@@ -132,7 +140,12 @@ function App() {
             sessionCount={DEFAULT_SESSION_COUNT}
             onSelectDirectory={handleOpenProject}
             onLaunchAll={handleAddSession}
-            onStopAll={() => setSessionsLaunched(false)}
+            onStopAll={() => {
+              // Kill all running sessions via the session store
+              const sessions = useSessionStore.getState().sessions;
+              sessions.forEach((s) => killSession(s.id).catch(console.error));
+              setSessionsLaunched(false);
+            }}
           />
         </div>
       </div>

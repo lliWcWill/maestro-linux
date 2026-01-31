@@ -2,10 +2,21 @@ use std::path::PathBuf;
 
 use crate::git::{BranchInfo, CommitInfo, Git, GitError, WorktreeInfo};
 
+/// Returns `Err(GitError::NotARepo)` if the given path string is empty.
+fn validate_repo_path(repo_path: &str) -> Result<(), GitError> {
+    if repo_path.is_empty() {
+        return Err(GitError::NotARepo {
+            path: PathBuf::from(""),
+        });
+    }
+    Ok(())
+}
+
 /// Exposes `Git::list_branches` to the frontend.
 /// Returns all local and remote branches (excluding HEAD pointer entries).
 #[tauri::command]
 pub async fn git_branches(repo_path: String) -> Result<Vec<BranchInfo>, GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     git.list_branches().await
 }
@@ -14,6 +25,7 @@ pub async fn git_branches(repo_path: String) -> Result<Vec<BranchInfo>, GitError
 /// Returns the branch name, or a short commit hash if HEAD is detached.
 #[tauri::command]
 pub async fn git_current_branch(repo_path: String) -> Result<String, GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     git.current_branch().await
 }
@@ -22,6 +34,7 @@ pub async fn git_current_branch(repo_path: String) -> Result<String, GitError> {
 /// Returns the number of dirty files (staged + unstaged + untracked).
 #[tauri::command]
 pub async fn git_uncommitted_count(repo_path: String) -> Result<usize, GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     git.uncommitted_count().await
 }
@@ -30,6 +43,7 @@ pub async fn git_uncommitted_count(repo_path: String) -> Result<usize, GitError>
 /// Returns all worktrees (including the main one) with path, HEAD, and branch info.
 #[tauri::command]
 pub async fn git_worktree_list(repo_path: String) -> Result<Vec<WorktreeInfo>, GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     git.worktree_list().await
 }
@@ -43,6 +57,7 @@ pub async fn git_worktree_add(
     new_branch: Option<String>,
     base_ref: Option<String>,
 ) -> Result<WorktreeInfo, GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     let wt_path = PathBuf::from(&path);
     git.worktree_add(
@@ -61,6 +76,7 @@ pub async fn git_worktree_remove(
     path: String,
     force: bool,
 ) -> Result<(), GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     let wt_path = PathBuf::from(&path);
     git.worktree_remove(&wt_path, force).await
@@ -74,6 +90,7 @@ pub async fn git_commit_log(
     max_count: usize,
     all_branches: bool,
 ) -> Result<Vec<CommitInfo>, GitError> {
+    validate_repo_path(&repo_path)?;
     let git = Git::new(&repo_path);
     git.commit_log(max_count, all_branches).await
 }

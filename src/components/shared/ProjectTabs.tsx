@@ -59,26 +59,40 @@ export function ProjectTabs({
             tabs.map((tab) => (
               <div
                 key={tab.id}
-                className={`flex items-center gap-1.5 rounded-t px-2 py-1.5 text-xs font-medium ${
+                role="tab"
+                aria-selected={tab.active}
+                tabIndex={tab.active ? 0 : -1}
+                onClick={() => onSelectTab(tab.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowRight") {
+                    const idx = tabs.findIndex((t) => t.id === tab.id);
+                    const next = tabs[(idx + 1) % tabs.length];
+                    if (next) onSelectTab(next.id);
+                  } else if (e.key === "ArrowLeft") {
+                    const idx = tabs.findIndex((t) => t.id === tab.id);
+                    const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+                    if (prev) onSelectTab(prev.id);
+                  } else if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectTab(tab.id);
+                  }
+                }}
+                className={`flex items-center gap-1.5 rounded-t px-2 py-1.5 text-xs font-medium cursor-pointer ${
                   tab.active
                     ? "bg-maestro-bg text-maestro-text"
                     : "text-maestro-muted hover:text-maestro-text"
                 }`}
               >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab.active}
-                  tabIndex={tab.active ? 0 : -1}
-                  onClick={() => onSelectTab(tab.id)}
-                  className="flex items-center gap-1.5"
-                >
+                <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-maestro-green" />
                   <span>{tab.name}</span>
-                </button>
+                </span>
                 <button
                   type="button"
-                  onClick={() => onCloseTab(tab.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCloseTab(tab.id);
+                  }}
                   className="ml-1 rounded p-0.5 hover:bg-maestro-border"
                   aria-label={`Close ${tab.name}`}
                 >

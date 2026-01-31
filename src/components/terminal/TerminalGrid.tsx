@@ -91,7 +91,7 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
         killSession(id).catch(console.error);
       }
     };
-  }, []);
+  }, [projectPath]);
 
   // Auto-respawn when all sessions close (not initial mount, not error)
   useEffect(() => {
@@ -136,10 +136,14 @@ export const TerminalGrid = forwardRef<TerminalGridHandle, TerminalGridProps>(fu
       <div className="flex h-full flex-col items-center justify-center gap-3 text-maestro-muted">
         <span className="text-sm text-maestro-red">{error}</span>
         <button
+          type="button"
           onClick={() => {
             setError(null);
             spawnShell(projectPath)
-              .then((id) => setSessions([id]))
+              .then((id) => {
+                mounted.current = true;
+                setSessions([id]);
+              })
               .catch((err) => {
                 console.error(err);
                 setError("Failed to start terminal session");

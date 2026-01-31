@@ -77,7 +77,7 @@ export function TerminalHeader({
       {/* Left cluster */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {/* AI provider icon + dropdown */}
-        <button className="flex shrink-0 items-center gap-0.5 text-maestro-muted hover:text-maestro-text">
+        <button type="button" aria-label="Select AI provider" className="flex shrink-0 items-center gap-0.5 text-maestro-muted hover:text-maestro-text">
           <ProviderIcon size={18} strokeWidth={1.5} className="text-violet-500 drop-shadow-[0_0_4px_rgba(139,92,246,0.5)]" />
           <ChevronDown size={9} className="text-maestro-muted/60" />
         </button>
@@ -128,7 +128,11 @@ export function TerminalHeader({
       {/* Right cluster */}
       <div className="flex shrink-0 items-center gap-1">
         {/* Branch selector */}
-        <button className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text">
+        <button
+          type="button"
+          aria-label={`Select branch, current: ${branchName || 'none'}`}
+          className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
+        >
           <GitBranch size={10} />
           <span className="max-w-[60px] truncate">{branchName}</span>
           <ChevronDown size={9} />
@@ -137,7 +141,8 @@ export function TerminalHeader({
         {/* Launch button (pre-launch only) */}
         {showLaunch && (
           <button
-            onClick={onLaunch}
+            type="button"
+            onClick={() => onLaunch?.()}
             className="rounded bg-maestro-green px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-maestro-green/80"
           >
             Launch
@@ -153,6 +158,7 @@ export function TerminalHeader({
 
         {/* Per-session settings gear */}
         <button
+          type="button"
           className="rounded p-0.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
           title="Session settings"
           aria-label="Session settings"
@@ -162,6 +168,7 @@ export function TerminalHeader({
 
         {/* Close button */}
         <button
+          type="button"
           onClick={() => onKill(sessionId)}
           className="rounded p-0.5 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-red"
           title="Kill session"

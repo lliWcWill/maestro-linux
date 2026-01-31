@@ -49,27 +49,39 @@ interface SessionStatusPayload {
  */
 interface SessionState {
   sessions: SessionConfig[];
+  isLoading: boolean;
+  error: string | null;
   fetchSessions: () => Promise<void>;
   initListeners: () => Promise<UnlistenFn>;
 }
 
 /**
- * Global session store. Not persisted -- sessions are ephemeral and
+ * Global session store. Not persisted — sessions are ephemeral and
  * re-fetched from the backend on app launch via `fetchSessions`.
  */
+let listenerInitialized = false;
+
+
 export const useSessionStore = create<SessionState>()((set) => ({
   sessions: [],
+  isLoading: false,
+  error: null,
 
   fetchSessions: async () => {
+    set({ isLoading: true, error: null });
     try {
       const sessions = await invoke<SessionConfig[]>("get_sessions");
-      set({ sessions });
+      set({ sessions, isLoading: false });
     } catch (err) {
       console.error("Failed to fetch sessions:", err);
+      set({ error: String(err), isLoading: false });
     }
   },
 
   initListeners: async () => {
+    if (listenerInitialized) return () => {};
+    listenerInitialized = true;
+
     const unlisten = await listen<SessionStatusPayload>(
       "session-status-changed",
       (event) => {
@@ -82,6 +94,10 @@ export const useSessionStore = create<SessionState>()((set) => ({
         }));
       },
     );
-    return unlisten;
+
+    return () => {
+      unlisten();
+      listenerInitialized = false;
+    };
   },
 }));

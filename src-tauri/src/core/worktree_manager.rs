@@ -15,11 +15,10 @@ fn worktree_base_dir() -> PathBuf {
 
 /// Fallback if ProjectDirs fails (e.g., no HOME set)
 fn dirs_fallback() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home)
-        .join(".local")
-        .join("share")
-        .join("maestro")
+    std::env::var("HOME")
+        .map(PathBuf::from)
+        .map(|p| p.join(".local").join("share").join("maestro"))
+        .expect("HOME environment variable must be set for worktree management")
 }
 
 /// Produces a 16-hex-char SHA-256 digest of the canonicalized repo path.
@@ -33,7 +32,7 @@ fn repo_hash(repo_path: &Path) -> String {
 /// Replaces filesystem-unsafe characters in branch names with hyphens.
 /// Covers `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, and `|`.
 fn sanitize_branch(branch: &str) -> String {
-    branch
+    let sanitized = branch
         .replace('/', "-")
         .replace('\\', "-")
         .replace(':', "-")
@@ -42,7 +41,13 @@ fn sanitize_branch(branch: &str) -> String {
         .replace('"', "-")
         .replace('<', "-")
         .replace('>', "-")
-        .replace('|', "-")
+        .replace('|', "-");
+
+    if sanitized.is_empty() {
+        "unnamed-branch".to_string()
+    } else {
+        sanitized
+    }
 }
 
 /// Manages Maestro-owned git worktrees under a deterministic, repo-specific
@@ -52,6 +57,12 @@ fn sanitize_branch(branch: &str) -> String {
 /// (truncated to 16 hex chars) so that different repos never collide, and a
 /// sanitized branch name so each branch gets its own subdirectory.
 pub struct WorktreeManager;
+
+impl Default for WorktreeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WorktreeManager {
     /// Creates a new stateless manager. All path computation is pure and
@@ -97,7 +108,7 @@ impl WorktreeManager {
 
         // Create parent directories
         if let Some(parent) = wt_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| GitError::SpawnError {
+            tokio::fs::create_dir_all(parent).await.map_err(|e| GitError::SpawnError {
                 source: e,
                 command: format!("create_dir_all {:?}", parent),
             })?;
@@ -117,7 +128,7 @@ impl WorktreeManager {
 
         // Clean up empty parent directories
         if let Some(parent) = wt_path.parent() {
-            let _ = std::fs::remove_dir(parent); // only succeeds if empty
+            let _ = tokio::fs::remove_dir(parent).await; // only succeeds if empty
         }
 
         Ok(())
@@ -130,11 +141,10 @@ impl WorktreeManager {
         let all = git.worktree_list().await?;
 
         let base = worktree_base_dir();
-        let base_str = base.to_string_lossy();
 
         Ok(all
             .into_iter()
-            .filter(|wt| wt.path.starts_with(base_str.as_ref()))
+            .filter(|wt| Path::new(&wt.path).starts_with(&base))
             .collect())
     }
 
@@ -163,13 +173,13 @@ impl WorktreeManager {
             .map(|wt| wt.path.clone())
             .collect();
 
-        if let Ok(entries) = std::fs::read_dir(&managed_dir) {
-            for entry in entries.flatten() {
+        if let Ok(mut entries) = tokio::fs::read_dir(&managed_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
                 let path = entry.path();
                 let path_str = path.to_string_lossy().to_string();
                 if !active.contains(&path_str) && path.is_dir() {
                     log::info!("Removing orphaned worktree dir: {}", path_str);
-                    let _ = std::fs::remove_dir_all(&path);
+                    let _ = tokio::fs::remove_dir_all(&path).await;
                 }
             }
         }

@@ -3,11 +3,15 @@ import { GitFork, X } from "lucide-react";
 interface GitGraphPanelProps {
   open: boolean;
   onClose: () => void;
+  commitCount?: number;
 }
 
-export function GitGraphPanel({ open, onClose }: GitGraphPanelProps) {
+export function GitGraphPanel({ open, onClose, commitCount = 0 }: GitGraphPanelProps) {
   return (
     <aside
+      aria-hidden={!open}
+      tabIndex={open ? undefined : -1}
+      {...(!open ? ({ inert: "" } as { inert: "" }) : {})}
       className={`relative z-30 flex flex-col border-l border-maestro-border bg-maestro-surface transition-all duration-200 overflow-hidden ${
         open ? "w-72" : "w-0 border-l-0"
       }`}
@@ -20,11 +24,13 @@ export function GitGraphPanel({ open, onClose }: GitGraphPanelProps) {
             Commits
           </span>
           <span className="rounded-full bg-maestro-accent/15 px-1.5 py-px text-[10px] font-medium text-maestro-accent">
-            0
+            {commitCount}
           </span>
         </div>
         <button
+          type="button"
           onClick={onClose}
+          tabIndex={open ? 0 : -1}
           className="rounded p-1 text-maestro-muted transition-colors hover:bg-maestro-card hover:text-maestro-text"
           aria-label="Close git panel"
         >

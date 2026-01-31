@@ -22,6 +22,7 @@ export function BranchDropdown({
   onClose,
 }: BranchDropdownProps) {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
+  const [loading, setLoading] = useState(true);
   const [focusIndex, setFocusIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -33,11 +34,17 @@ export function BranchDropdown({
       .then((result) => {
         if (!cancelled) {
           setBranches(result);
+          setLoading(false);
           const currentIdx = result.findIndex((b) => b.is_current);
           setFocusIndex(currentIdx >= 0 ? currentIdx : 0);
         }
       })
-      .catch((err) => console.error("Failed to fetch branches:", err));
+      .catch((err) => {
+        console.error("Failed to fetch branches:", err);
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -133,6 +140,7 @@ export function BranchDropdown({
 
           return (
             <button
+              type="button"
               key={branch.name}
               data-branch-item
               onClick={() => onSelect(branch.name)}
@@ -165,9 +173,14 @@ export function BranchDropdown({
             </button>
           );
         })}
-        {branches.length === 0 && (
+        {loading && (
           <div className="px-3 py-2 text-sm text-maestro-muted">
             Loading branches...
+          </div>
+        )}
+        {!loading && branches.length === 0 && (
+          <div className="px-3 py-2 text-sm text-maestro-muted">
+            No branches found
           </div>
         )}
       </div>

@@ -20,6 +20,7 @@ export function useOpenProject(): () => Promise<void> {
       }
     } catch (err) {
       console.error("Failed to open project folder:", err);
+      // TODO: Wire to toast notification when toast system is added
     }
   }, [openProject]);
 }

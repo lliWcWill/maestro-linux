@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use serde::{Deserialize, Serialize};
 
 /// Which AI backend a session is configured to use.
@@ -50,6 +51,12 @@ pub struct SessionManager {
     sessions: DashMap<u32, SessionConfig>,
 }
 
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionManager {
     /// Creates an empty session registry.
     pub fn new() -> Self {
@@ -59,8 +66,8 @@ impl SessionManager {
     }
 
     /// Inserts a new session with `Starting` status and no branch assigned.
-    /// If a session with the same ID already exists, it is silently overwritten.
-    pub fn create_session(&self, id: u32, mode: AiMode) -> SessionConfig {
+    /// Returns `Err` with the existing config if a session with this ID already exists.
+    pub fn create_session(&self, id: u32, mode: AiMode) -> Result<SessionConfig, SessionConfig> {
         let config = SessionConfig {
             id,
             mode,
@@ -68,8 +75,13 @@ impl SessionManager {
             status: SessionStatus::Starting,
             worktree_path: None,
         };
-        self.sessions.insert(id, config.clone());
-        config
+        match self.sessions.entry(id) {
+            Entry::Occupied(e) => Err(e.get().clone()),
+            Entry::Vacant(e) => {
+                e.insert(config.clone());
+                Ok(config)
+            }
+        }
     }
 
     /// Returns a snapshot of the session config, or `None` if not found.

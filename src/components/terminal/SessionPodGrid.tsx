@@ -9,8 +9,8 @@ export function SessionPodGrid({ sessionCount = 6 }: SessionPodGridProps) {
   const pods = Array.from({ length: count }, (_, i) => i + 1);
 
   const gridClass =
-    count <= 2
-      ? "grid-cols-2"
+    count <= 1
+      ? "grid-cols-1"
       : count <= 4
         ? "grid-cols-2"
         : "grid-cols-3";

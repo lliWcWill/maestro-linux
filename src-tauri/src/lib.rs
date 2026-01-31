@@ -21,11 +21,17 @@ pub fn run() {
         .manage(SessionManager::new())
         .manage(WorktreeManager::new())
         .setup(|_app| {
-            // Verify git is available at startup
-            tauri::async_runtime::block_on(async {
-                match verify_git_available().await {
-                    Ok(version) => log::info!("Git available: {version}"),
-                    Err(e) => log::error!("Git not found: {e}. Git operations will fail."),
+            // Verify git is available at startup (non-blocking with timeout)
+            tauri::async_runtime::spawn(async {
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    verify_git_available(),
+                )
+                .await
+                {
+                    Ok(Ok(version)) => log::info!("Git available: {version}"),
+                    Ok(Err(e)) => log::error!("Git not found: {e}. Git operations will fail."),
+                    Err(_) => log::error!("Git version check timed out after 5s"),
                 }
             });
             Ok(())
