@@ -1,10 +1,15 @@
 # Maestro Linux (Tauri 2.x) — Master Architectural Plan
 
 **Version:** 3.2.0
+
 **Date:** 2026-01-30
+
 **Target OS:** Linux (Debian/Ubuntu)
+
 **Stack:** Tauri 2.0 (Rust) + React 18 (TypeScript) + TailwindCSS
+
 **Package Output:** `.deb`
+
 **Source Analysis:** 18,500 lines Swift across 50+ files (claude-maestro macOS)
 
 ---
